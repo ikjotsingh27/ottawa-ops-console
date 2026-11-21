@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Unified Operations Console</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%227%22 fill=%22%231d4ed8%22/%3E%3Ctext x=%2216%22 y=%2221%22 font-family=%22Arial%22 font-size=%2211%22 font-weight=%22700%22 fill=%22white%22 text-anchor=%22middle%22%3EOPS%3C/text%3E%3C/svg%3E">
+<meta name="description" content="Unified Operations Console: Ottawa public safety data and a SOC cyber defence lab, with live public feeds refreshed hourly.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;500;600&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* VOICE: a duty officer's night desk. Calm, exact, every number carries its year and source.
+   IDEA: one operations board with two desks (Ottawa public safety, SOC cyber defence); each section is its own page.
+   PICTURE: the working tools and true chart forms (Level Zero columns, severity bars, timelines) lead each view.
+   COLOUR and TYPE: white ground, graphite ink, cobalt accent, slate support (deep slate at night); Inter Tight 300 titles, Inter body, Plex Mono only for logs.
+   LAYOUT: top bar with desk switch and search, section rail (chips on narrow screens), one focused view at a time, detail in a side drawer. */
+:root{color-scheme:light dark;--bg:light-dark(#ffffff,#0f1419);--s1:light-dark(#f6f7f9,#161c23);--s2:light-dark(#eef1f4,#1d252e);--s3:light-dark(#e2e6eb,#27313c);--line:light-dark(#d9dee4,#2c3640);--ink:light-dark(#111827,#e8edf2);--dim:light-dark(#4b5563,#a7b2bf);--faint:light-dark(#6b7280,#808c99);--acc:light-dark(#1d4ed8,#7aa2ff);--onacc:light-dark(#ffffff,#0b1220);--dusk:light-dark(#64748b,#7d8ea3);--crit:light-dark(#c8102e,#ff6b6b);--high:light-dark(#c2410c,#fb923c);--med:light-dark(#a16207,#facc15);--low:light-dark(#475569,#94a3b8);--good:light-dark(#047857,#34d399);--code:light-dark(#f3f5f8,#0b1015);--topbg:light-dark(rgba(255,255,255,.93),rgba(15,20,25,.93));--pbad:light-dark(#fde8eb,#3a1518);--pwarn:light-dark(#fdf3d8,#3a2e10);--pgood:light-dark(#dcf3ea,#0f2e24);--refbg:light-dark(#e8eefc,#1c2a4a);--markbg:light-dark(#fde68a,#5b4a12);--scrim:light-dark(rgba(15,23,42,.45),rgba(0,0,0,.6));--shadow:light-dark(rgba(15,23,42,.14),rgba(0,0,0,.5));--r:12px}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html{scroll-padding-top:120px}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;overflow-x:clip}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+a{color:var(--acc)}
+.mono,pre,code{font-family:"IBM Plex Mono",ui-monospace,monospace}
+h1,h2,h3{margin:0;font-weight:500;text-wrap:balance}
+h1{font:300 clamp(30px,4.4vw,46px)/1.05 "Inter Tight",Inter,sans-serif;letter-spacing:-.02em}
+h2{font:500 22px/1.2 "Inter Tight",Inter,sans-serif}
+h3{font-size:16px;font-weight:600}
+p{margin:0}
+.dim{color:var(--dim)}.faint{color:var(--faint)}
+.top{position:sticky;top:0;z-index:30;background:var(--topbg);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.topin{max-width:1320px;margin:0 auto;padding:10px max(3vw,14px);display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
+.brand{display:flex;align-items:center;gap:10px;background:none;border:0;padding:0;text-align:left}
+.mark{width:38px;height:38px;border-radius:10px;background:var(--acc);color:var(--onacc);display:grid;place-items:center;font:600 13px "Inter Tight",Inter,system-ui,sans-serif}
+.brand b{display:block;font:600 16px/1.1 "Inter Tight",Inter,system-ui,sans-serif}
+.brand small{color:var(--dim);font-size:13px}
+.desks{display:flex;gap:4px;background:var(--s1);border:1px solid var(--line);border-radius:999px;padding:4px}
+.desks button{border:0;background:none;border-radius:999px;padding:8px 14px;min-height:40px;font-weight:600;font-size:14px;color:var(--dim)}
+.desks button[aria-current=true]{background:var(--ink);color:var(--bg)}
+.search{position:relative;flex:1 1 220px;max-width:420px;margin-left:auto}
+.search input{width:100%;min-height:44px;border-radius:10px;border:1px solid var(--line);background:var(--s1);padding:0 14px 0 38px;font-size:16px}
+.search svg{position:absolute;left:12px;top:13px;width:18px;height:18px;stroke:var(--dim)}
+.results{position:absolute;top:50px;left:0;right:0;background:var(--s2);border:1px solid var(--line);border-radius:12px;max-height:70vh;overflow:auto;box-shadow:0 18px 40px var(--shadow);display:none}
+.results.on{display:block}
+.results h4{margin:0;padding:10px 14px 4px;font-size:12px;color:var(--faint);font-weight:600}
+.results button{display:block;width:100%;text-align:left;border:0;background:none;padding:8px 14px;min-height:44px}
+.results button:hover,.results button.sel{background:var(--s3)}
+.results .sub{display:block;font-size:13px;color:var(--dim)}
+.clock{text-align:right;line-height:1.15}
+.clock b{font:500 18px "IBM Plex Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.clock small{display:block;font-size:12px;color:var(--dim)}
+.shell{max-width:1320px;margin:0 auto;display:grid;grid-template-columns:236px minmax(0,1fr);gap:24px;padding:0 max(3vw,14px)}
+.rail{position:sticky;top:76px;align-self:start;padding:20px 0;max-height:calc(100vh - 80px);overflow:auto}
+.rail h5{margin:16px 8px 6px;font-size:12px;color:var(--faint);font-weight:600}
+.rail h5:first-child{margin-top:0}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:8px;width:100%;text-align:left;border:1px solid transparent;background:none;border-radius:9px;padding:8px 10px;min-height:42px;font-size:14px;color:var(--ink)}
+.nav button:hover{background:var(--s1)}
+.nav button[aria-current=true]{background:var(--s2);border-color:var(--line)}
+.nav .n{margin-left:auto;font:500 12px "IBM Plex Mono",ui-monospace,monospace;color:var(--faint)}
+.nav .n.c{color:var(--crit)}
+main{padding:24px 0 60px;min-height:70vh}
+.head{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:end;justify-content:space-between;margin-bottom:18px}
+.head p{max-width:72ch;margin-top:8px;color:var(--dim)}
+.tag{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:13px;color:var(--dim);white-space:nowrap}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin:0 0 18px;overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 14px;min-height:44px;font-weight:600;font-size:14px;color:var(--dim);border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected=true]{color:var(--ink);border-color:var(--acc)}
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.g4{grid-template-columns:repeat(4,minmax(0,1fr))}
+.card{background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.card h3+p,.card h3+.dim{margin-top:6px}
+.kpi .v{font:300 clamp(28px,3.4vw,40px)/1 "Inter Tight",Inter,system-ui,sans-serif;font-variant-numeric:tabular-nums;white-space:nowrap}
+.kpi .v small{font-size:15px;color:var(--dim);margin-left:4px}
+.kpi .k{margin-top:8px;font-weight:600;font-size:14px}
+.kpi .d{margin-top:4px;font-size:13px;color:var(--dim)}
+.chg{font:500 13px "IBM Plex Mono",ui-monospace,monospace;white-space:nowrap}
+.bad{color:var(--crit)}.good{color:var(--good)}.flat,.neutral{color:var(--dim)}
+.sec{margin-top:26px}
+.sec>h2{margin-bottom:12px}
+.bars{display:grid;gap:10px}
+.bar{display:grid;grid-template-columns:minmax(110px,190px) minmax(0,1fr) auto;gap:10px;align-items:center;font-size:14px}
+.bar .t{height:14px;background:var(--s3);border-radius:4px;overflow:hidden}
+.bar .t i{display:block;height:100%;border-radius:4px;background:var(--dusk)}
+.bar .num{font:500 13px "IBM Plex Mono",ui-monospace,monospace;white-space:nowrap;text-align:right}
+.cols{display:flex;align-items:flex-end;gap:12px;height:240px;padding-top:24px;border-bottom:1px solid var(--line)}
+.cols .c{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;position:relative}
+.cols .c i{display:block;width:min(64px,80%);border-radius:6px 6px 0 0;background:var(--dusk)}
+.cols .c b{font:500 12px "IBM Plex Mono",ui-monospace,monospace;margin-bottom:6px;white-space:nowrap}
+.colx{display:flex;gap:12px}.colx span{flex:1;text-align:center;font-size:13px;color:var(--dim);padding-top:6px}
+.sev{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;text-transform:capitalize;white-space:nowrap}
+.sev::before{content:"";width:9px;height:9px;border-radius:50%;background:currentColor}
+.critical{color:var(--crit)}.high{color:var(--high)}.medium{color:var(--med)}.low{color:var(--low)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--s1);border-radius:999px;padding:6px 12px;min-height:36px;font-size:13px;font-weight:500}
+.chip[aria-pressed=true]{border-color:var(--acc);color:var(--acc)}
+.btn{border:1px solid var(--acc);background:var(--acc);color:var(--onacc);border-radius:10px;padding:10px 16px;min-height:44px;font-weight:600;font-size:14px}
+.btn.ghost{background:none;color:var(--ink);border-color:var(--line)}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.list{display:grid;gap:6px}
+.it{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;text-align:left;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:52px}
+.it:hover{border-color:var(--dusk)}
+.it .nm{font-weight:600;font-size:14px;line-height:1.35}
+.it .meta{font-size:12.5px;color:var(--dim)}
+.it .st{font:500 12px "IBM Plex Mono",ui-monospace,monospace;text-transform:uppercase;color:var(--faint)}
+.st.acknowledged{color:var(--med)}.st.resolved{color:var(--good)}
+.dot{width:10px;height:10px;border-radius:50%;background:currentColor}
+pre{margin:0;background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word;max-height:420px;overflow:auto}
+label.f{display:block;font-size:13px;font-weight:600;color:var(--dim);margin-bottom:6px}
+input.in,select.in,textarea.in{width:100%;background:var(--code);border:1px solid var(--line);border-radius:10px;padding:10px 12px;min-height:44px;font-size:16px}
+textarea.in{min-height:140px;font-family:"IBM Plex Mono",monospace;font-size:14px;resize:vertical}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;font-size:12.5px;color:var(--faint);font-weight:600;padding:8px;border-bottom:1px solid var(--line)}
+td{padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.pick{cursor:pointer}tr.pick:hover td{background:var(--s2)}tr.pick.on td{background:var(--s3)}
+.note{border-left:3px solid var(--dusk);padding:4px 0 4px 12px;color:var(--dim);font-size:14px}
+.watch{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;text-align:left;width:100%;background:var(--s1);border:1px solid var(--line);border-radius:10px;padding:12px;min-height:56px}
+.watch .fig{font:300 26px "Inter Tight",Inter,system-ui,sans-serif;white-space:nowrap}
+.pill{font-size:11.5px;font-weight:700;border-radius:6px;padding:3px 8px;white-space:nowrap}
+.pill.signal{background:var(--pbad);color:var(--crit)}.pill.watchp{background:var(--pwarn);color:var(--med)}.pill.relief{background:var(--pgood);color:var(--good)}
+.tl{list-style:none;margin:0;padding:0 0 0 14px;border-left:1px solid var(--line)}
+.tl li{position:relative;padding:0 0 14px 14px}
+.tl li::before{content:"";position:absolute;left:-20px;top:7px;width:11px;height:11px;border-radius:50%;background:currentColor;border:2px solid var(--bg)}
+.tl .when{font:500 12px "IBM Plex Mono",ui-monospace,monospace;color:var(--dim)}
+.tl .what{font:13px/1.5 "IBM Plex Mono",ui-monospace,monospace;color:var(--ink);word-break:break-word}
+.drawer{position:fixed;inset:0;z-index:50;display:none}
+.drawer.on{display:block}
+.drawer .bg{position:absolute;inset:0;background:var(--scrim)}
+.drawer .pane{position:absolute;top:0;right:0;bottom:0;width:min(720px,100%);background:var(--bg);border-left:1px solid var(--line);overflow:auto;padding:18px max(3vw,16px) 40px}
+.ref{border:0;background:var(--refbg);color:var(--acc);border-radius:5px;padding:0 5px;font:500 .95em "IBM Plex Mono",ui-monospace,monospace}
+.ioc{border:1px dashed var(--dusk);background:none;border-radius:6px;padding:4px 8px;font:500 12.5px "IBM Plex Mono",ui-monospace,monospace;min-height:32px}
+.meter{height:10px;background:var(--s3);border-radius:5px;overflow:hidden}.meter i{display:block;height:100%;background:var(--good)}
+details{background:var(--s1);border:1px solid var(--line);border-radius:10px;margin-bottom:8px}
+summary{padding:12px 14px;font-weight:600;cursor:pointer;min-height:44px}
+details>div{padding:0 14px 14px;color:var(--dim)}
+details>div p+p{margin-top:10px}
+.score{font:300 64px/1 "Inter Tight",Inter,system-ui,sans-serif}
+mark{background:var(--markbg);color:var(--ink);border-radius:3px;padding:0 2px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);border-radius:10px;padding:10px 16px;font-weight:600;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.ibtn{width:24px;height:24px;min-height:0;border-radius:50%;border:1px solid var(--line);background:var(--s1);color:var(--dim);font:600 13px/1 Georgia,serif;font-style:italic;display:inline-grid;place-items:center;vertical-align:middle;margin-left:10px;padding:0;position:relative;top:-3px}
+.ibtn:hover,.ibtn[aria-expanded=true]{color:var(--acc);border-color:var(--acc)}
+h2 .ibtn,h3 .ibtn{top:-1px;width:22px;height:22px;font-size:12px}
+.pop{position:fixed;z-index:70;width:min(400px,calc(100vw - 24px));max-height:70vh;overflow:auto;background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop-filter:blur(16px) saturate(1.4);-webkit-backdrop-filter:blur(16px) saturate(1.4);border:1px solid color-mix(in srgb,var(--acc) 40%,var(--line));border-radius:14px;padding:14px 16px 16px;box-shadow:0 18px 50px var(--shadow);display:none}
+.pop.on{display:block}
+.pop h4{margin:0 26px 4px 0;font:600 16px/1.3 Inter,system-ui,sans-serif}
+.pop dl{margin:6px 0 0;font-size:14px;line-height:1.5}.pop dt{font-weight:600;margin-top:10px}.pop dd{margin:2px 0 0;color:var(--dim)}
+.pop .x{position:absolute;top:8px;right:8px;border:0;background:none;color:var(--dim);font-size:20px;line-height:1;width:32px;height:32px;min-height:0}
+.livep{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;color:var(--dim);background:var(--s1);min-height:36px;white-space:nowrap}
+.livep i,.fresh i{width:8px;height:8px;border-radius:50%;background:var(--faint);flex:none}
+.fresh{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--dim)}
+i.ok{background:var(--good)!important}i.warn{background:var(--med)!important}i.bad{background:var(--crit)!important}
+.tile{text-align:left;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:6px;min-height:132px}
+.tile:hover{border-color:var(--acc)}
+.tile .big{font:300 30px/1.05 "Inter Tight",Inter,system-ui,sans-serif}
+.spark{width:120px;height:28px;display:block}
+.roles{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 14px}
+.notice{border:1px dashed var(--line);border-radius:12px;padding:14px;color:var(--dim)}
+.foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
+@media (prefers-reduced-motion:no-preference){.view{animation:in .22s ease-out}@keyframes in{from{opacity:0;transform:translateY(6px)}}}
+@media(max-width:1000px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:960px){.shell{grid-template-columns:minmax(0,1fr);gap:0}.rail{position:sticky;top:var(--toph,118px);z-index:20;background:var(--bg);padding:8px 0;max-height:none;border-bottom:1px solid var(--line);overflow-x:auto}.rail h5{display:none}.navwrap{display:flex;gap:6px;width:max-content}.nav{flex-direction:row;gap:6px;flex:none;width:max-content}.nav button{flex:none;width:auto;white-space:nowrap;border-color:var(--line);min-height:40px}.nav .n{display:none}}
+@media(max-width:640px){.g2,.g3{grid-template-columns:minmax(0,1fr)}.clock{display:none}.search{max-width:none;flex-basis:100%}.bar{grid-template-columns:minmax(0,1fr) auto}.bar .t{grid-column:1/-1;grid-row:2}.cols{gap:6px}.cols .c b{font-size:10.5px}}
+@media(max-width:600px){table{font-size:13px}.stack thead{display:none}.stack tr{display:grid;padding-block:10px}.stack td{display:flow-root;border:0;padding:3px 0;padding-inline-start:8em;text-align:start}.stack td::before{content:attr(data-l);float:inline-start;width:7.5em;margin-inline-start:-8em;white-space:normal;color:var(--faint)}.stack td:empty{display:none}}
+</style>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('.stack td:not([data-l])')){let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan;c.dataset.l=c.closest('table').rows[0].cells[i]?.textContent||''}}).observe(document,{childList:true,subtree:true})</script>
+</head>
+<body>
+<header class="top" id="top">
+  <div class="topin">
+    <button class="brand" data-go="home" aria-label="Console home"><span class="mark">OPS</span><span><b>Unified Operations Console</b><small>Ottawa public safety · SOC cyber defence</small></span></button>
+    <nav class="desks" aria-label="Desks">
+      <button data-go="home" data-desk="home">Home</button>
+      <button data-go="ps-live" data-desk="ps">Public safety</button>
+      <button data-go="soc-overview" data-desk="soc">Cyber defence</button>
+    </nav>
+    <div class="search" role="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+      <input id="q" type="search" autocomplete="off" placeholder="Search both desks (press /)" aria-label="Search both desks" aria-controls="results">
+      <div class="results" id="results" role="listbox"></div>
+    </div>
+    <button class="livep" id="livep" data-go="ps-live" title="Live data status"><i></i><span>Live data</span></button>
+    <div class="clock" aria-live="off"><b id="clk">--:--:--</b><small id="clkd">Toronto (ET)</small></div>
+  </div>
+</header>
+<div class="shell">
+  <aside class="rail" id="rail" aria-label="Sections"></aside>
+  <main id="main"><p class="dim">Loading the console…</p></main>
+</div>
+<div class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dh"><div class="bg" data-act="close"></div><div class="pane" id="pane"></div></div>
+<div class="pop" id="pop" role="dialog" aria-modal="false" aria-labelledby="poph"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>window.DATA=/*__DATA__*/null;</script>
+<script>
+{
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const fmt=n=>Number(n).toLocaleString("en-CA");
+const ratio=(cy,py)=>py?(cy-py)/py:0;
+const pctTxt=r=>{const v=Math.round(r*1000)/10;return (v>0?"+":"")+(Number.isInteger(v)?v:v.toFixed(1))+"%"};
+const SEVS=["critical","high","medium","low"];const SW={critical:4,high:3,medium:2,low:1};
+const sevTag=s=>`<span class="sev ${s}">${s}</span>`;
+let toastT;const toast=m=>{const t=$("#toast");t.textContent=m;t.classList.add("on");clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove("on"),2600)};
+async function copy(text,label){try{await navigator.clipboard.writeText(text);toast(label||"Copied")}catch{toast("Copy was blocked here. Select the text and copy it.")}}
+
+/* ---------- local store (one viewer, this browser only) ---------- */
+const KEY="ops-console-v1";
+let P={states:{},activity:[],vulnOrder:null};
+try{const raw=localStorage.getItem(KEY);if(raw)P=Object.assign(P,JSON.parse(raw))}catch{}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(P))}catch{}};
+const statusOf=k=>P.states[k]?.status||"open";
+function setStatus(k,s){const o=P.states[k]||{};const ts={...(o.ts||{})};ts[s]=new Date().toISOString();P.states[k]={...o,status:s,ts,first:o.first||ts[s]};save()}
+function markSeen(k){const o=P.states[k]||{};if(!o.first){P.states[k]={...o,first:new Date().toISOString()};save()}}
+function logAct(kind,summary){P.activity.unshift({t:new Date().toISOString(),kind,summary});P.activity=P.activity.slice(0,40);save()}
+
+let D,ITEMS=[],BYCODE={},MOD={},LABTEXT="";
+const S={view:"home",tab:{},sel:{},qfilter:{sev:"all",status:"all",mod:"all",text:"",n:25}};
+
+/* ---------- clock (fixed: 24h cycle never shows 24:00) ---------- */
+function tick(){const now=new Date();$("#clk").textContent=now.toLocaleTimeString("en-CA",{timeZone:"America/Toronto",hourCycle:"h23",hour:"2-digit",minute:"2-digit",second:"2-digit"});$("#clkd").textContent=now.toLocaleDateString("en-CA",{timeZone:"America/Toronto",weekday:"short",month:"short",day:"numeric"})+" · Toronto"}
+
+/* ---------- views & navigation ---------- */
+const MODSHORT={1:"Detection",2:"SIEM logs",3:"Ransomware",4:"Hunting",5:"Threat intel",6:"Sandbox",7:"Forensics",8:"Cloud",9:"Active Directory",10:"Kubernetes",11:"Vulnerabilities",12:"Web app",13:"Phishing AI"};
+const PSV=[["ps-live","Live conditions"],["ps-brief","Briefing"],["ps-police","Police"],["ps-fire","Fire"],["ps-para","Paramedics"],["ps-bylaw","By-law"],["ps-place","Place and context"],["ps-sources","Sources and caveats"]];
+function viewLabel(v){if(v==="home")return"Home";const p=PSV.find(x=>x[0]===v);if(p)return p[1];if(v==="soc-overview")return"SOC overview";if(v==="soc-feed")return"Threat feed";if(v==="soc-queue")return"Triage queue";const m=v.match(/^soc-m(\d+)$/);return m?MODSHORT[m[1]]:"Home"}
+function validView(v){return v==="home"||PSV.some(x=>x[0]===v)||v==="soc-overview"||v==="soc-queue"||v==="soc-feed"||/^soc-m([1-9]|1[0-3])$/.test(v)}
+function go(v,opts={}){if(!validView(v))v="home";S.view=v;if(opts.tab)S.tab[v]=opts.tab;if(location.hash.slice(1)!==v){try{history.pushState(null,"","#"+v)}catch{location.hash=v}}render();if(!opts.keepScroll)window.scrollTo({top:0});closeSearch()}
+window.addEventListener("hashchange",()=>{const v=location.hash.slice(1)||"home";if(v!==S.view){S.view=validView(v)?v:"home";render()}});
+window.addEventListener("popstate",()=>{const v=location.hash.slice(1)||"home";if(v!==S.view){S.view=validView(v)?v:"home";render()}});
+
+const deskOf=v=>v.startsWith("ps-")?"ps":v.startsWith("soc-")?"soc":"home";
+function openCount(num){return MOD[num].items.filter(i=>statusOf(i.k)==="open").length}
+function critOpen(num){return MOD[num].items.filter(i=>i.sev==="critical"&&statusOf(i.k)==="open").length}
+function renderRail(){
+  const d=deskOf(S.view);let h="";
+  const b=(v,label,n,c)=>`<button data-go="${v}" ${S.view===v?'aria-current="true"':""}>${esc(label)}${n!=null?`<span class="n ${c?"c":""}">${n}</span>`:""}</button>`;
+  if(d==="home"){h=`<h5>Desks</h5><div class="nav">${b("home","Home")}${b("ps-live","Live conditions")}${b("ps-brief","Public safety briefing")}${b("soc-feed","Threat feed")}${b("soc-overview","SOC overview")}${b("soc-queue","Triage queue",ITEMS.filter(i=>statusOf(i.k)==="open").length)}</div>`}
+  else if(d==="ps"){h=`<h5>Ottawa public safety</h5><div class="nav">${PSV.map(([v,l])=>b(v,l)).join("")}</div>`}
+  else{
+    h=`<div class="navwrap"><h5>Cyber defence</h5><div class="nav">${b("soc-overview","Overview")}${b("soc-feed","Threat feed")}${b("soc-queue","Triage queue",ITEMS.filter(i=>statusOf(i.k)==="open").length)}</div>`;
+    const cats=[...new Set(D.soc.map(m=>m.cat))];
+    for(const c of cats){h+=`<h5>${esc(c)}</h5><div class="nav">${D.soc.filter(m=>m.cat===c).map(m=>{const co=critOpen(m.num);return b("soc-m"+m.num,m.num+". "+MODSHORT[m.num],co||openCount(m.num),co>0)}).join("")}</div>`}
+    h+="</div>";
+  }
+  $("#rail").innerHTML=h;
+  document.querySelectorAll(".desks button").forEach(x=>x.setAttribute("aria-current",String(x.dataset.desk===d)));
+}
+function tabs(view,list){const cur=S.tab[view]||list[0][0];return{cur,html:`<div class="tabs" role="tablist">${list.map(([id,l])=>`<button role="tab" data-tab="${id}" aria-selected="${id===cur}">${esc(l)}</button>`).join("")}</div>`}}
+function render(){
+  renderRail();
+  const v=S.view;let h="";
+  if(v==="home")h=vHome();else if(v==="ps-live")h=vLive();else if(v==="soc-feed")h=vFeed();else if(v==="ps-brief")h=vBrief();else if(v==="ps-police")h=vPolice();else if(v==="ps-fire")h=vFire();else if(v==="ps-para")h=vPara();else if(v==="ps-bylaw")h=vBylaw();else if(v==="ps-place")h=vPlace();else if(v==="ps-sources")h=vSources();
+  else if(v==="soc-overview")h=vSocOverview();else if(v==="soc-queue")h=vQueue();else{const m=v.match(/^soc-m(\d+)$/);h=vModule(+m[1])}
+  h=h.replace("</h1>",infoBtn(/^soc-m/.test(v)?"module":v)+"</h1>");
+  $("#main").innerHTML=`<div class="view">${h}<p class="foot">Published figures and finished lab content only. Nothing here is a live dispatch or SIEM feed. Triage states and tool history are kept in this browser only.</p></div>`;
+  document.title=viewLabel(v)+" · Operations Console";
+  afterRender();
+  const th=$("#top").offsetHeight;document.documentElement.style.setProperty("--toph",th+"px");
+}
+
+/* ---------- shared chart pieces ---------- */
+const bars=(rows,color)=>{const max=Math.max(...rows.map(r=>r.v))||1;return`<div class="bars">${rows.map(r=>`<div class="bar"><span>${esc(r.label)}</span><span class="t"><i style="width:${Math.max(r.v/max*100,1.5)}%;background:${r.color||color||"var(--dusk)"}"></i></span><span class="num">${r.txt??fmt(r.v)}</span></div>`).join("")}</div>`};
+const cols=(rows,max)=>{max=max||Math.max(...rows.map(r=>r.v));return`<div class="cols" role="img" aria-label="${esc(rows.map(r=>r.label+": "+fmt(r.v)).join(", "))}">${rows.map(r=>`<div class="c"><b>${fmt(r.v)}</b><i style="height:${Math.max(r.v/max*100,1.2)}%;background:${r.color||"var(--dusk)"}"></i></div>`).join("")}</div><div class="colx">${rows.map(r=>`<span>${esc(r.label)}</span>`).join("")}</div>`};
+const kpi=(v,k,d,cls="")=>`<div class="card kpi"><div class="v ${cls}">${v}</div><div class="k">${k}</div>${d?`<div class="d">${d}</div>`:""}</div>`;
+
+/* ============ PUBLIC SAFETY ============ */
+const O=()=>D.ott;
+function toneOf(ind){const r=ratio(ind.cy,ind.py);if(Math.abs(r)<0.02)return"flat";if(ind.polarity==="context")return"neutral";return r>0?"bad":"good"}
+const ind=id=>O().INDICATORS.find(x=>x.id===id);
+function vHome(){
+  const o=O(),lz=o.PARA.levelZero,sh=ind("shootings"),rb=ind("robbery");
+  const sevCounts=SEVS.map(s=>({s,n:ITEMS.filter(i=>i.sev===s).length,open:ITEMS.filter(i=>i.sev===s&&statusOf(i.k)==="open").length}));
+  const openN=ITEMS.filter(i=>statusOf(i.k)==="open").length;
+  const topCrit=ITEMS.filter(i=>i.sev==="critical"&&statusOf(i.k)==="open").slice(0,4);
+  return`<div class="head"><div><h1>Two desks, one briefing</h1><p>Ottawa's emergency services, measured from published reports and live public feeds, beside a 13 module SOC console built around one lab intrusion. Start with what is happening now, then pick your role or a desk.</p></div></div>${situation()}${rolePicker()}
+  <div class="grid g2">
+   <section class="card"><div class="row" style="justify-content:space-between"><h2>Public safety · Ottawa</h2><button class="btn ghost" data-go="ps-brief">Open briefing</button></div>
+    <p class="dim" style="margin-top:6px">Paramedic availability is the year's operational change: minutes with no ambulance available fell to ${fmt(lz[4].minutes)} in 2025.</p>
+    <div style="margin-top:10px">${cols(lz.map((r,i)=>({label:r.year,v:r.minutes,color:i===4?"var(--good)":i===1?"var(--crit)":"var(--dusk)"})))}</div>
+    <div class="grid g2" style="margin-top:14px">
+     ${kpi(fmt(sh.cy),"Shootings · 2025 prelim",`<span class="chg good">${pctTxt(ratio(sh.cy,sh.py))}</span> from ${fmt(sh.py)}`)}
+     ${kpi(fmt(rb.cy),"Robbery · 2025 prelim",`<span class="chg bad">${pctTxt(ratio(rb.cy,rb.py))}</span> from ${fmt(rb.py)}`)}
+    </div></section>
+   <section class="card"><div class="row" style="justify-content:space-between"><h2>Cyber defence · SOC</h2><button class="btn ghost" data-go="soc-overview">Open SOC</button></div>
+    <p class="dim" style="margin-top:6px">${openN} of ${ITEMS.length} findings still open across 13 modules. One intrusion runs through them all: source 203.0.113.87, command and control 198.51.100.23:8443, lure Invoice_Q3.docm.</p>
+    <div style="margin-top:14px">${bars(sevCounts.map(x=>({label:x.s[0].toUpperCase()+x.s.slice(1),v:x.n,txt:`${x.open} open / ${x.n}`,color:`var(--${x.s==="critical"?"crit":x.s==="high"?"high":x.s==="medium"?"med":"low"})`})))}</div>
+    <h3 style="margin-top:18px">Critical and still open</h3>
+    <div class="list" style="margin-top:8px">${topCrit.map(itemRow).join("")||`<p class="dim">No open critical findings. Nice work.</p>`}</div>
+   </section>
+  </div>`;
+}
+function vBrief(){
+  const o=O();const T=S.tab["ps-brief"]||"beats";const t=tabs("ps-brief",[["beats","Three points"],["watch","Watchlist"],["findings","Findings"],["sitrep","Situation report"]]);
+  let body="";
+  if(t.cur==="beats")body=`<div class="grid g3">${o.BEATS.map(b=>`<article class="card"><span class="pill ${b.tone==="watch"?"watchp":b.tone}">${b.tone==="signal"?"Police":b.tone==="watch"?"Fire":"Paramedics"}</span><h3 style="margin-top:10px">${esc(b.title)}</h3><p class="dim" style="margin-top:6px">${esc(b.text)}</p></article>`).join("")}</div>
+   <div class="sec"><h2>Coverage on this desk</h2><div class="card"><table class="stack"><thead><tr><th>Service</th><th>Year</th><th>Source</th></tr></thead><tbody>${o.COVERAGE.map(c=>`<tr><td><b>${esc(c.service)}</b></td><td>${esc(c.year)}</td><td class="dim">${esc(c.what)}</td></tr>`).join("")}</tbody></table></div></div>`;
+  else if(t.cur==="watch")body=`<div class="list">${o.WATCH.map(w=>`<button class="watch" data-go="${w.view==="paramedics"?"ps-para":"ps-"+w.view}"><span class="pill ${w.tone==="watch"?"watchp":w.tone}">${esc(w.tag)}</span><span><b>${esc(w.title)}</b><br><span class="dim" style="font-size:14px">${esc(w.text)}</span></span><span class="fig">${esc(w.figure)}</span></button>`).join("")}</div>`;
+  else if(t.cur==="findings")body=`<div class="grid g2">${o.FINDINGS.map(f=>`<article class="card"><p class="faint" style="font-size:13px">${esc(f.kicker)}</p><h3 style="margin-top:4px">${esc(f.title)}</h3><p class="dim" style="margin-top:6px">${esc(f.text)}</p></article>`).join("")}</div>`;
+  else body=`<div class="card"><div class="row" style="justify-content:space-between"><h3>Ready to read out or paste into a memo</h3><button class="btn" data-act="copy-sitrep">Copy situation report</button></div><p style="margin-top:12px;max-width:75ch">${esc(o.SITREP)}</p></div>`;
+  return`<div class="head"><div><h1>Ottawa public safety briefing</h1><p>Police volume is almost flat, fire demand keeps climbing on medical calls, and paramedics nearly eliminated Level Zero. Each service keeps its own year and units, so compare direction within a service, never across services.</p></div><span class="tag">Snapshot · 20 Nov 2026</span></div>${t.html}${body}`;
+}
+function vPolice(){
+  const o=O();const t=tabs("ps-police",[["explore","Indicators"],["ytd","2026 year to date"],["mix","Crime mix"],["totals","Two totals and context"]]);
+  let body="";
+  if(t.cur==="explore"){
+    const sel=ind(S.sel.ind||"total")||o.INDICATORS[3];const r=ratio(sel.cy,sel.py),tone=toneOf(sel);
+    const share=sel.shareOf==="total-crime"?`<p class="note" style="margin-top:12px">${(sel.cy/o.POLICE_TOTAL*100).toFixed(1)}% of 2025 total crime (${fmt(o.POLICE_TOTAL)}). Categories overlap, so these shares are not slices of one pie.</p>`:"";
+    body=`<div class="grid" style="grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);align-items:start" id="polgrid">
+     <div class="card" style="padding:6px 8px"><table class="stack"><thead><tr><th>Indicator</th><th class="r">2025 prelim</th><th class="r">2024</th><th class="r">Change</th></tr></thead><tbody>${o.INDICATORS.map(x=>{const tn=toneOf(x);return`<tr class="pick ${x.id===sel.id?"on":""}" data-ind="${x.id}" tabindex="0"><td><b>${esc(x.name)}</b></td><td class="r">${fmt(x.cy)}</td><td class="r">${fmt(x.py)}</td><td class="r"><span class="chg ${tn}">${pctTxt(ratio(x.cy,x.py))}</span></td></tr>`}).join("")}</tbody></table></div>
+     <div class="card" style="position:sticky;top:130px"><p class="faint" style="font-size:13px">Selected indicator</p><h2 style="margin-top:4px">${esc(sel.name)}</h2>
+      <div class="grid g2" style="margin-top:14px"><div class="kpi"><div class="v">${fmt(sel.cy)}</div><div class="k">2025 preliminary</div></div><div class="kpi"><div class="v ${tone}">${pctTxt(r)}</div><div class="k">${sel.cy-sel.py>0?"+":""}${fmt(sel.cy-sel.py)} on 2024</div></div></div>
+      <div style="margin-top:16px">${bars([{label:"2024",v:sel.py},{label:"2025 prelim",v:sel.cy,color:tone==="bad"?"var(--crit)":tone==="good"?"var(--good)":"var(--dusk)"}])}</div>
+      <p style="margin-top:14px">${esc(sel.note)}</p><p class="dim" style="margin-top:8px">${esc(sel.reading)}</p>${share}
+      <div class="row" style="margin-top:14px"><button class="btn ghost" data-act="cite" data-id="${sel.id}">Copy citation</button></div>
+      ${sel.polarity==="context"?`<p class="faint" style="font-size:13px;margin-top:10px">Workload indicator: a rise is not scored as good or bad.</p>`:""}</div></div>`;
+  }else if(t.cur==="ytd"){body=policeYtd();
+  }else if(t.cur==="mix"){
+    const rows=o.INDICATORS.filter(x=>x.shareOf).sort((a,b)=>b.cy-a.cy);
+    body=`<div class="card"><h3>Offence categories, 2025 preliminary</h3><p class="dim">Count and share of total crime excluding traffic (${fmt(o.POLICE_TOTAL)}).</p><div style="margin-top:14px">${bars(rows.map(x=>({label:x.name,v:x.cy,txt:`${fmt(x.cy)} · ${(x.cy/o.POLICE_TOTAL*100).toFixed(1)}%`})))}</div><p class="note" style="margin-top:14px">Theft under $5,000 alone is ${(ind("theft").cy/o.POLICE_TOTAL*100).toFixed(0)}% of all crime. That is why the total can stay flat while shootings and homicides fall.</p></div>`;
+  }else{
+    const sc=o.STATCAN,y5=o.Y2025.statcan,e9=o.Y2025.e911;
+    body=`<div class="grid g3">${kpi(fmt(o.POLICE_TOTAL),"Portal preliminary total","Crime excluding traffic, 2025. OPS labels it +1% on "+fmt(o.POLICE_TOTAL_PRIOR)+".")}${kpi(fmt(o.ANNUAL_OFFENCES),"Annual Report, rounded","2025 Annual Report offence figure. Same year, different publication.")}${kpi("~"+fmt(o.ANNUAL_CALLS),"Calls and online reports","2025 Annual Report. Clearance rate "+sc.clearance+"%.")}</div>
+     <p class="note sec">Do not argue ${fmt(o.POLICE_TOTAL)} against ${fmt(o.ANNUAL_OFFENCES)}. They come from two publications with two rounding rules.</p>
+     <div class="sec"><h2>Crime Severity Index, 2025${infoBtn("csi")}</h2><div class="card">${bars([{label:"Ottawa (StatCan) 2025",v:y5.ottawaCsi,txt:y5.ottawaCsi.toFixed(1)},{label:"Ottawa (StatCan) 2024",v:sc.ottawaCsi,txt:String(sc.ottawaCsi),color:"var(--faint)"},{label:"Toronto 2025",v:y5.torontoCsi,txt:y5.torontoCsi.toFixed(1),color:"var(--faint)"},{label:"Ontario 2025",v:y5.ontarioCsi,txt:y5.ontarioCsi.toFixed(1),color:"var(--faint)"},{label:"Canada 2025",v:y5.canadaCsi,txt:y5.canadaCsi.toFixed(1),color:"var(--faint)"}])}<p class="dim" style="margin-top:12px">Ottawa's index fell ${Math.abs(y5.ottawaCsiChange)}% in 2025, and its crime rate per 100,000 fell ${Math.abs(y5.ottawaRateChange)}% to ${fmt(y5.ottawaRate)} (Canada ${fmt(y5.canadaRate)}). OPS reports its own index (${sc.opsCsi} for 2024), a different series. Do not average them.</p></div></div>
+     <div class="sec"><h2>9-1-1 call answering, 2025${infoBtn("e911")}</h2><div class="grid g3">${kpi(fmt(e9.calls),"9-1-1 calls · 2025",`<span class="chg neutral">${pctTxt(ratio(e9.calls,e9.calls2024))}</span> on ${fmt(e9.calls2024)}; ${fmt(e9.calls2023)} in 2023`)}${kpi(e9.answered6s+"%","Answered within 6 seconds",`Target ${e9.target}%. Missed for the ${e9.missedYears}th straight year.`,"bad")}${kpi("Police","Answers every 9-1-1 call","OPS triages each call, then transfers fire and paramedic requests.")}</div></div>
+     ${srcLine(y5)}${srcLine(e9)}`;
+  }
+  return`<div class="head"><div><h1>Police · Ottawa Police Service</h1><p>Serious violence fell in 2025 while everyday crime did not. Pick an indicator to see its 2024 to 2025 move, how to read it, and a ready citation.</p></div><span class="tag">OPS · 2025 preliminary</span></div>${t.html}${body}`;
+}
+function vFire(){
+  const f=O().FIRE,y=O().Y2025.fire,other=f.incidents-f.falseAlarms-f.medical-f.fires;
+  const trend=[...O().FIRE_TREND,{year:"2025",value:y.incidents}];
+  return`<div class="head"><div><h1>Fire · Ottawa Fire Services</h1><p>Calls to the fire communications centre jumped 9% in 2025 while incidents rose 1%. Actual fire responses climbed 8%, and fire medical calls fell 12% as dispatch with paramedics improved.</p></div><span class="tag">OFS · 2025 annual (May 2026)</span></div>
+  <div class="grid g4">${kpi(fmt(y.incidents),"Incidents · 2025",`<span class="chg bad">${pctTxt(ratio(y.incidents,y.incidentsPrior))}</span> on ${fmt(y.incidentsPrior)}`)}${kpi(fmt(y.calls),"Communications calls · 2025",`<span class="chg neutral">${pctTxt(ratio(y.calls,y.callsPrior))}</span> on ${fmt(y.callsPrior)}`)}${kpi(fmt(y.falseAlarms),"False alarms · 2025",`<span class="chg bad">${pctTxt(ratio(y.falseAlarms,y.falseAlarmsPrior))}</span> on ${fmt(y.falseAlarmsPrior)}. About 33 a day.`)}${kpi("+"+y.fireResponsesChange+"%","Fire responses · 2025",`Medical calls ${y.medicalChange}% as tiered dispatch improved.`)}</div>
+  <div class="grid g2 sec"><div class="card"><h3>Incidents, 2022 to 2025${infoBtn("fire-trend")}</h3>${cols(trend.map((r,i)=>({label:r.year,v:r.value,color:i===3?"var(--acc)":"var(--high)"})))}<p class="dim" style="margin-top:10px;font-size:14px">Growth slowed to 1% in 2025 after the false alarm strategy launched in July 2024.</p></div>
+   <div class="card"><h3>What the incidents were · 2024 breakdown${infoBtn("fire-mix")}</h3><div style="margin-top:14px">${bars([{label:"False alarms",v:f.falseAlarms,txt:`${fmt(f.falseAlarms)} · ${(f.falseAlarms/f.incidents*100).toFixed(0)}%`,color:"var(--med)"},{label:"Medical responses",v:f.medical,txt:`${fmt(f.medical)} · ${(f.medical/f.incidents*100).toFixed(0)}%`,color:"var(--good)"},{label:"Actual fires",v:f.fires,txt:`${fmt(f.fires)} · ${(f.fires/f.incidents*100).toFixed(1)}%`,color:"var(--crit)"},{label:"Other (rescues, hazards…)",v:other,txt:`${fmt(other)} · ${(other/f.incidents*100).toFixed(0)}%`}])}</div><p class="dim" style="margin-top:10px;font-size:13px">The full 2025 category breakdown was not in the public coverage; 2024 is the latest complete split. Maximum risk response 2024: ${f.maxRisk} against a ${f.maxRiskBase} baseline.</p></div></div>
+  <div class="grid g2 sec"><p class="note">Three numbers, never added together: ${fmt(y.calls)} calls received, ${fmt(y.incidents)} incidents, and apparatus responses (${fmt(f.apparatus)} in 2024). One incident can send several trucks.</p><p class="note">The 2025 report revises 2024 calls to ${fmt(y.callsPrior)} (the 2024 report said ${fmt(f.calls)}). Cite the newer figure.</p></div>
+  ${srcLine(y)}`;
+}
+function vPara(){
+  const p=O().PARA,lz=p.levelZero,y=O().Y2025.para,off=O().Y2025.offload;
+  const tg=[{label:"Life threatening (CTAS 1)",window:"within 8 minutes, target 75%",v:y.ctas1,prior:y.ctas1Prior,miss:y.ctas1<y.ctas1Target},{label:"Urgent (CTAS 2)",window:"within the council target time",v:y.ctas2},{label:"CTAS 3",window:"within the council target time",v:y.ctas3}];
+  return`<div class="head"><div><h1>Paramedics · Ottawa Paramedic Service</h1><p>Level Zero nearly disappeared in 2025, down to ${fmt(y.levelZero)} minutes. But the life threatening response target was missed again: ${y.ctas1}% within 8 minutes against a 75% target.</p></div><span class="tag">2025 annual (June 2026)</span></div>
+  <div class="grid g2"><div class="card"><h3>Level Zero minutes by year${infoBtn("levelzero")}</h3>${cols(lz.map((r,i)=>({label:r.year,v:r.minutes,color:i===4?"var(--good)":i===1||i===2?"var(--crit)":i===3?"var(--med)":"var(--faint)"})))}<p class="dim" style="margin-top:10px;font-size:14px">The City credits MPDS dispatch (April 2024), the investment plan, and lower hospital offload delay.</p></div>
+   <div class="card"><h3>Hospital offload delay, hours per year${infoBtn("offload")}</h3>${cols(off.rows.map(r=>({label:r.year,v:r.hours,color:"var(--high)"})))}<p class="dim" style="margin-top:10px;font-size:14px">Target: patient handed over within ${off.targetMin} minutes, 9 times out of 10. Ottawa hospitals have missed it for years. 2024 and 2025 hour totals were not in the public coverage.</p></div></div>
+  <div class="sec"><h2>Response targets, 2025${infoBtn("para-targets")}</h2><div class="grid g3">${tg.map(t=>`<div class="card"><div class="row" style="justify-content:space-between"><b>${esc(t.label)}</b><span class="kpi"><span class="v ${t.miss?"bad":""}" style="font-size:30px">${t.v}%</span></span></div><p class="dim" style="font-size:14px">${esc(t.window)}</p><div class="meter" style="margin-top:10px"><i style="width:${t.v}%;${t.miss?"background:var(--crit)":""}"></i></div>${t.prior?`<p class="dim" style="font-size:13px;margin-top:8px">${t.miss?"Missed. ":""}Was ${t.prior}% in 2024.</p>`:""}</div>`).join("")}</div></div>
+  <div class="grid g4 sec">${kpi(fmt(p.calls),"Calls · 2024",`<span class="chg neutral">${pctTxt(ratio(p.calls,p.calls2023))}</span> on ${fmt(p.calls2023)}`)}${kpi(fmt(p.responses),"Responses · 2024","One call can need more than one response.")}${kpi(fmt(p.patients),"Community paramedic patients · 2024",fmt(p.visits)+"+ home visits.")}${kpi(fmt(y.levelZero)+"<small>min</small>","Level Zero · 2025","From "+fmt(lz[1].minutes)+" in 2022.","good")}</div>
+  <div class="grid g3 sec"><div class="card"><h3>Mental Well-being Response Team</h3><p class="dim">Helps people in mental health and substance use crises, reducing transports and repeat 911 calls.</p></div><div class="card"><h3>ByWard Market unit</h3><p class="dim">Launched July 2024 in Lowertown: advanced care response, wellness checks, naloxone, outreach.</p></div><div class="card"><h3>Rural response</h3><p class="dim">Crews pulled downtown into offload delay leave rural areas thinner. Council asked for a rural versus urban breakdown in 2024.</p></div></div>
+  ${srcLine(y)}${srcLine(off)}`;
+}
+function vBylaw(){
+  const b=O().BYLAW,y=O().Y2025.bylaw;
+  return`<div class="head"><div><h1>By-law and protective services</h1><p>Demand hit a record in 2025: more than ${fmt(y.requests)} service requests, up ${y.requestsChange}%, with parking enforcement requests at an all time high. Every priority response target was still met.</p></div><span class="tag">City · 2025 annual (April 2026)</span></div>
+  <div class="grid g4">${kpi(fmt(y.requests)+"+","Service requests · 2025",`<span class="chg neutral">+${y.requestsChange}%</span> on 2024`)}${kpi(fmt(y.parkingRequests),"Parking enforcement requests",`Record. <span class="chg neutral">${pctTxt(ratio(y.parkingRequests,y.parkingRequestsPrior))}</span> on ${fmt(y.parkingRequestsPrior)}`)}${kpi(fmt(y.tickets),"Parking tickets issued",`<span class="chg neutral">${pctTxt(ratio(y.tickets,y.ticketsPrior))}</span> on ${fmt(y.ticketsPrior)}. About 1,300 a day.`)}${kpi(fmt(y.taxiTrips)+"+","Accessible taxi trips","On demand accessible taxicab pilot, 2025.")}</div>
+  <div class="card sec"><h3>Where 2024 requests came from${infoBtn("bylaw-mix")}</h3><div style="margin-top:12px">${bars([{label:"Parking",v:b.parkingShare,txt:b.parkingShare+"%",color:"var(--dusk)"},{label:"Noise",v:b.noiseShare,txt:b.noiseShare+"%"},{label:"Everything else",v:100-b.parkingShare-b.noiseShare,txt:(100-b.parkingShare-b.noiseShare)+"%",color:"var(--faint)"}])}</div><p class="dim" style="margin-top:12px;font-size:14px">2024 shares of ~${fmt(b.requests)} requests; the 2025 split was not in the public coverage. Growth in 2025 came mostly from school zones, bus routes and residential parking. The City also launched Ottawa Alert, its emergency notification system, in 2025.</p></div>
+  ${srcLine(y)}`;
+}
+function vPlace(){
+  return`<div class="head"><div><h1>Place and context</h1><p>City totals are the wrong scale for most safety questions. Move down a scale with the sources that publish it, and never treat a map dot as an address.</p></div><span class="tag">ONS · OPS by ward</span></div>
+  <div class="grid g3"><div class="card"><p class="faint">Scale 1</p><h3>City</h3><p class="dim">This console's service sections. Direction within each service.</p></div><div class="card"><p class="faint">Scale 2</p><h3>Ward</h3><p class="dim">OPS portal crime by ward. Good for ward comparisons and trend direction.</p><a href="https://data.ottawapolice.ca" target="_blank" rel="noopener">data.ottawapolice.ca</a></div><div class="card"><p class="faint">Scale 3</p><h3>Neighbourhood</h3><p class="dim">Ottawa Neighbourhood Study: offence mix, multi-year trends, day versus night.</p><a href="https://ons-sqo.ca" target="_blank" rel="noopener">ons-sqo.ca</a></div></div>
+  <div class="grid g2 sec"><div class="card"><h3>Geomasking is a privacy feature</h3><p class="dim" style="margin-top:6px">OPS shifts or aggregates locations so incidents cannot be tied to a victim's home. Use it for hotspots and trends. Do not use it to pinpoint a house, rank a single street, or call a preliminary count final.</p></div><div class="card"><h3>No invented rankings</h3><p class="dim" style="margin-top:6px">No verified table ranks every Ottawa neighbourhood on one score, so this console shows none. Follow the links for the real place views.</p></div></div>
+  <div class="card sec"><h3>National context, 2025${infoBtn("csi")}</h3><div style="margin-top:12px">${bars([{label:"Ottawa CSI",v:O().Y2025.statcan.ottawaCsi,txt:O().Y2025.statcan.ottawaCsi.toFixed(1)},{label:"Canada CSI",v:O().Y2025.statcan.canadaCsi,txt:O().Y2025.statcan.canadaCsi.toFixed(1),color:"var(--faint)"}])}</div></div>`;
+}
+function vSources(){
+  const o=O();const t=tabs("ps-sources",[["lib","Library"],["live","Live feeds"],["cav","Before you cite"]]);const g=S.sel.srcGroup||"all",q=(S.sel.srcQ||"").toLowerCase();
+  const groups=[["all","All"],["police","Police portal"],["city","Open Ottawa"],["ons","Neighbourhood Study"],["reports","Annual reports"]];
+  let body="";
+  if(t.cur==="lib"){const list=o.SOURCES.filter(s=>(g==="all"||s.group===g)&&(!q||(s.title+" "+s.desc+" "+s.kw).toLowerCase().includes(q)));
+    body=`<div class="row" style="margin-bottom:12px"><input class="in" id="srcq" type="search" placeholder="Filter: overdose, fire, ward, 311…" value="${esc(S.sel.srcQ||"")}" style="max-width:360px" aria-label="Filter sources"><div class="chips">${groups.map(([id,l])=>`<button class="chip" data-srcg="${id}" aria-pressed="${g===id}">${l}</button>`).join("")}</div></div>
+     <div class="grid g2">${list.map(s=>`<article class="card"><h3>${esc(s.title)}</h3><div class="chips" style="margin:8px 0">${s.meta.map(m=>`<span class="tag">${esc(m)}</span>`).join("")}</div><p class="dim">${esc(s.desc)}</p><p style="margin-top:10px"><a href="${esc(s.url)}" target="_blank" rel="noopener">${esc(s.btn)} ↗</a></p></article>`).join("")||`<p class="dim">No source matches. Try a broader word like crime or calls.</p>`}</div>`}
+  else if(t.cur==="live")body=liveSourcesTable();
+  else body=`<div class="grid g2">${o.CAVEATS.map(c=>`<article class="card"><h3>${esc(c.title)}</h3><p class="dim" style="margin-top:6px">${esc(c.text)}</p></article>`).join("")}</div>`;
+  return`<div class="head"><div><h1>Sources and caveats</h1><p>No single website holds all Ottawa public safety data. These ${o.SOURCES.length} sources in four groups are the public set behind every number here.</p></div></div>${t.html}${body}`;
+}
+
+/* ============ CYBER DEFENCE ============ */
+function itemRow(i){const st=statusOf(i.k);return`<button class="it" data-open="${i.k}"><span class="dot ${i.sev}" aria-hidden="true"></span><span><span class="nm">${esc(i.code)} · ${esc(i.title)}</span><span class="meta" style="display:block">${esc(MODSHORT[i.num])} · ${esc(i.tech)} · ${esc(i.tactic)} · <span class="${i.sev}">${i.sev}</span></span></span><span class="st ${st}">${st}</span></button>`}
+const lineTime=l=>{const iso=l.match(/(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);if(iso)return{key:Date.parse(`${iso[1]}T${iso[2]}:${iso[3]}:${iso[4]||"00"}Z`),label:`${iso[1]} ${iso[2]}:${iso[3]}${iso[4]?":"+iso[4]:""}`};
+  const tp=l.match(/\bT\+(\d+)\s*(s|m|h|min)\b/i);if(tp){const n=+tp[1],u=tp[2].toLowerCase();return{key:1e15+n*(u==="s"?1:u==="h"?3600:60),label:tp[0]}}
+  const hm=l.match(/\b([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?\b/);if(hm)return{key:Date.UTC(2026,10,20,+hm[1],+hm[2],+(hm[3]||0)),label:hm[0]};return null};
+function timeline(items,max){const out=[];for(const i of items)for(const raw of i.ev.split("\n")){const l=raw.trim(),t=l&&lineTime(l);if(t)out.push({...t,l,i})}
+  out.sort((a,b)=>a.key-b.key);const shown=max?out.slice(0,max):out;
+  return shown.length?`<ol class="tl">${shown.map(e=>`<li class="${e.i.sev}"><div class="when">${esc(e.label)} · ${linkify(e.i.code)}</div><div class="what">${hl(esc(e.l))}</div></li>`).join("")}</ol>`:`<p class="dim">No timed events in this evidence.</p>`}
+const hl=s=>s;
+function vSocOverview(){
+  const tactics={};ITEMS.forEach(i=>tactics[i.tactic]=(tactics[i.tactic]||0)+1);
+  const tr=Object.entries(tactics).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const inv=BYCODE["INV-07"];const openN=ITEMS.filter(i=>statusOf(i.k)==="open").length,ack=ITEMS.filter(i=>statusOf(i.k)==="acknowledged").length,res=ITEMS.length-openN-ack;
+  const cats=[...new Set(D.soc.map(m=>m.cat))];
+  return`<div class="head"><div><h1>One intrusion, thirteen modules</h1><p>A brute forced RDP login led to a macro lure, PowerShell, a dropped upd.exe, C2 beaconing and a ransomware precursor. Each module looks at the same incident through a different tool.</p></div><span class="tag">Lab events · 20 Nov 2026 UTC</span></div>
+  ${triageMetrics()}<div class="grid g4">${kpi(ITEMS.length,"Findings","Rules, investigations, checks and classifications.")}${kpi(ITEMS.filter(i=>i.sev==="critical").length,"Critical","Highest severity across all modules.","critical")}${kpi(openN,"Open","Not yet acknowledged or resolved.")}${kpi(res,"Resolved",`${ack} acknowledged. Saved in this browser.`,"good")}</div>
+  <div class="sec"><h2>Modules</h2>${cats.map(c=>`<h3 class="faint" style="margin:14px 0 8px;font-size:13px">${esc(c)}</h3><div class="grid g3">${D.soc.filter(m=>m.cat===c).map(m=>{const n=m.items.length,o=openCount(m.num),cr=critOpen(m.num);return`<button class="card it" style="display:flex;flex-direction:column;justify-content:flex-start;text-align:left" data-go="soc-m${m.num}"><span class="faint mono" style="font-size:12px">${String(m.num).padStart(2,"0")}</span><span class="nm" style="display:block;font-size:15px">${esc(m.title)}</span><span class="meta" style="display:block;margin-top:4px">${esc(m.desc)}</span><span class="row" style="margin-top:10px;gap:12px"><span class="mono" style="font-size:12.5px">${n} findings</span><span class="mono ${cr?"critical":""}" style="font-size:12.5px">${cr} critical open</span><span class="mono faint" style="font-size:12.5px">${o} open</span></span><span class="meter" style="margin-top:8px;display:block"><i style="width:${(n-o)/n*100}%"></i></span></button>`}).join("")}</div>`).join("")}</div>
+  <div class="grid g2 sec"><div class="card"><h3>ATT&amp;CK tactics covered</h3><p class="dim" style="font-size:14px">Top ten tactics by number of findings.</p><div style="margin-top:12px">${bars(tr.map(([k,v])=>({label:k,v})))}</div></div>
+   <div class="card"><h3>The merged incident (${inv?linkify("INV-07"):"INV-07"})</h3><p class="dim" style="font-size:14px">Firewall, Windows and Linux evidence on one clock.</p><div style="margin-top:12px;max-height:420px;overflow:auto">${inv?timeline([inv]):""}</div></div></div>
+  <div class="card sec"><div class="row" style="justify-content:space-between"><h3>Console activity</h3>${P.activity.length?`<button class="chip" data-act="clear-act">Clear history</button>`:""}</div><div style="margin-top:8px">${P.activity.slice(0,8).map(a=>`<p style="font-size:14px;padding:6px 0;border-bottom:1px solid var(--line)"><span class="mono faint" style="font-size:12px">${esc(new Date(a.t).toLocaleString("en-CA",{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}))}</span> · ${esc(a.summary)}</p>`).join("")||`<p class="dim">No tool runs yet. Run a detection test, log search, hunt or enrichment and it shows here.</p>`}</div></div>`;
+}
+function vQueue(){
+  const f=S.qfilter;const tx=f.text.toLowerCase();
+  const list=ITEMS.filter(i=>(f.sev==="all"||i.sev===f.sev)&&(f.status==="all"||statusOf(i.k)===f.status)&&(f.mod==="all"||String(i.num)===f.mod)&&(!tx||(i.code+" "+i.title+" "+i.tech+" "+i.tactic).toLowerCase().includes(tx))).sort((a,b)=>SW[b.sev]-SW[a.sev]||a.num-b.num);
+  return`<div class="head"><div><h1>Triage queue</h1><p>Every finding from all 13 modules in one queue, worst first. Filter it down, open one, and set its state as you work.</p></div><span class="tag">${list.length} shown</span></div>
+  <div class="card" style="margin-bottom:14px"><div class="grid g3">
+   <div><label class="f" for="qtx">Find in queue</label><input class="in" id="qtx" type="search" value="${esc(f.text)}" placeholder="Code, name, technique"></div>
+   <div><label class="f" for="qmod">Module</label><select class="in" id="qmod"><option value="all">All modules</option>${D.soc.map(m=>`<option value="${m.num}" ${f.mod===String(m.num)?"selected":""}>${m.num}. ${esc(MODSHORT[m.num])}</option>`).join("")}</select></div>
+   <div><label class="f">State</label><div class="chips">${["all","open","acknowledged","resolved"].map(s=>`<button class="chip" data-qst="${s}" aria-pressed="${f.status===s}">${s}</button>`).join("")}</div></div></div>
+   <div class="chips" style="margin-top:12px">${["all",...SEVS].map(s=>`<button class="chip" data-qsev="${s}" aria-pressed="${f.sev===s}">${s==="all"?"All severities":sevTag(s)}</button>`).join("")}</div></div>
+  <div class="list">${list.slice(0,f.n).map(itemRow).join("")||`<p class="dim">Nothing matches these filters.</p>`}</div>
+  ${list.length>f.n?`<div class="row" style="margin-top:12px"><button class="btn ghost" data-act="more">Show ${Math.min(25,list.length-f.n)} more of ${list.length-f.n}</button></div>`:""}`;
+}
+function vModule(num){
+  const m=MOD[num];const v="soc-m"+num;
+  const toolName={1:"Rule tester",2:"Log search",3:"YARA tester",4:"Run a hunt",5:"Enrich",6:"Sandbox replay",7:"Super-timeline",8:"Posture board",9:"Posture board",10:"Posture board",11:"Patch order",12:"Posture board",13:"Classify email"}[num];
+  const t=tabs(v,[["findings","Findings"],["tool",toolName],["writeup","Write-up"],["report","Report"],["steps","Checklist"]]);
+  const sf=S.sel["msev"+num]||"all";
+  let body="";
+  if(t.cur==="findings"){const list=m.items.filter(i=>sf==="all"||i.sev===sf);body=`<div class="chips" style="margin-bottom:12px">${["all",...SEVS].filter(s=>s==="all"||m.items.some(i=>i.sev===s)).map(s=>`<button class="chip" data-msev="${s}" aria-pressed="${sf===s}">${s==="all"?`All (${m.items.length})`:`${sevTag(s)} ${m.items.filter(i=>i.sev===s).length}`}</button>`).join("")}</div><div class="list">${list.map(itemRow).join("")}</div>`}
+  else if(t.cur==="tool")body=TOOLS[num]?TOOLS[num](m):postureTool(m);
+  else if(t.cur==="writeup"){const names={problem:"Problem",methodology:"Methodology",findings:"Findings",challenges:"Challenges",learned:"What I learned"};body=Object.entries(names).filter(([k])=>m.writeup[k]).map(([k,l],ix)=>`<details ${ix===0?"open":""}><summary>${l}</summary><div>${m.writeup[k].split(/\n+/).map(p=>`<p>${linkify(p)}</p>`).join("")}</div></details>`).join("")}
+  else if(t.cur==="report"){const rep=reportText(m);body=`<div class="card"><div class="row" style="justify-content:space-between"><p class="dim">Findings in severity order with evidence and the first remediation step, in plain text.</p><button class="btn" data-act="copy-report" data-num="${num}">Copy report</button></div><pre style="margin-top:12px;max-height:560px">${esc(rep)}</pre></div>`}
+  else body=`<div class="card"><ol style="margin:0;padding-left:20px">${m.steps.map(s=>`<li style="padding:5px 0">${esc(s)} <span class="good" aria-label="done">✓</span></li>`).join("")}</ol><p class="dim" style="margin-top:10px;font-size:14px">All checklist steps were completed in the original project.${m.url?` Project brief: <a href="${esc(m.url)}" target="_blank" rel="noopener">${esc(m.url)}</a>`:""}</p></div>`;
+  const o=openCount(num);
+  return`<div class="head"><div><p class="faint mono" style="font-size:13px">Module ${num} of 13 · ${esc(m.cat)}</p><h1 style="margin-top:4px">${esc(m.title)}</h1><p>${esc(m.desc)}</p></div><div style="min-width:200px"><p class="dim" style="font-size:13px">${m.items.length-o} of ${m.items.length} triaged</p><div class="meter" style="margin-top:6px"><i style="width:${(m.items.length-o)/m.items.length*100}%"></i></div></div></div>${t.html}<div id="tool">${body}</div>`;
+}
+function reportText(m){const s=[...m.items].sort((a,b)=>SW[b.sev]-SW[a.sev]);const L=[`${m.title} - Report`,`Module ${m.num} of 13 · Unified Operations Console`,m.desc,`Findings: ${m.items.length} (${SEVS.map(x=>`${m.items.filter(i=>i.sev===x).length} ${x}`).join(", ")})`,""];
+  s.forEach((i,ix)=>L.push(`${ix+1}. [${i.sev.toUpperCase()}] ${i.code} ${i.title}`,`    ${i.tech} · ${i.tactic} · Source: ${i.src}`,`    State: ${statusOf(i.k)}`,`    Evidence: ${(i.ev.split("\n")[0]||"").slice(0,300)}`,`    Triage / remediation: ${(i.triage.split("\n")[0]||"").slice(0,300)}`,""));
+  if(m.writeup.findings)L.push("Summary of findings (from the project write-up):",m.writeup.findings);return L.join("\n")}
+
+/* linkify cross references like HUNT-05 into buttons that open that finding */
+let CODE_RE=/$^/;
+function linkify(s){return esc(s).replace(CODE_RE,c=>BYCODE[c]?`<button class="ref" data-open="${BYCODE[c].k}">${c}</button>`:c)}
+const IOC_RE=/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d{2,5})?\b|\b[0-9a-f]{4}…[0-9a-f]{4}\b|\b[\w-]+\.(?:docm|exe|dat|dll|ps1)\b|\b(?:[a-z0-9-]+\.)+(?:example|onion)\b/gi;
+function iocsOf(i){const set=new Set();for(const m of (i.title+"\n"+i.ev).match(IOC_RE)||[])if(!/^\d+\.\d+$/.test(m))set.add(m);return[...set].slice(0,10)}
+
+/* ---------- detail drawer ---------- */
+function openItem(k){const i=ITEMS.find(x=>x.k===k);if(!i)return;markSeen(k);S.drawer=k;const st=statusOf(k);const tab=S.dtab||"ev";
+  const sec={logic:["Rule / query",i.logic],ev:["Evidence",i.ev],triage:["Triage / remediation",i.triage],fp:["False positives",i.fp]};
+  const iocs=iocsOf(i);
+  $("#pane").innerHTML=`<div class="row" style="justify-content:space-between"><span class="faint mono" style="font-size:13px">${esc(i.code)} · Module ${i.num} ${esc(MODSHORT[i.num])}</span><button class="btn ghost" data-act="close" aria-label="Close details">Close</button></div>
+   <h2 id="dh" style="margin-top:10px;font-size:24px">${esc(i.title)}</h2>
+   <p class="dim" style="margin-top:6px">${sevTag(i.sev)} · ${esc(i.tech)} · ${esc(i.tactic)}</p><p class="faint" style="font-size:13px;margin-top:4px">Source: ${esc(i.src)}</p>
+   <div class="card" style="margin-top:14px"><label class="f">Triage state</label><div class="chips">${["open","acknowledged","resolved"].map(s=>`<button class="chip" data-setst="${s}" aria-pressed="${st===s}">${s}</button>`).join("")}</div></div>
+   ${iocs.length?`<div style="margin-top:14px"><label class="f">Indicators in this finding (tap to enrich)</label><div class="chips">${iocs.map(x=>`<button class="ioc" data-enrich="${esc(x)}">${esc(x)}</button>`).join("")}</div></div>`:""}
+   <div class="tabs" role="tablist" style="margin-top:14px">${Object.entries(sec).filter(([,v])=>v[1]).map(([id,v])=>`<button role="tab" data-dtab="${id}" aria-selected="${id===tab}">${v[0]}</button>`).join("")}</div>
+   <pre>${linkify(sec[tab]?.[1]||i.ev)}</pre>
+   <div class="row" style="margin-top:12px"><button class="btn ghost" data-go="soc-m${i.num}">Open module ${i.num}</button></div>`;
+  $("#drawer").classList.add("on");document.body.style.overflow="hidden";$("#pane").scrollTop=0;$("#pane [data-act=close]").focus()}
+function closeDrawer(){$("#drawer").classList.remove("on");document.body.style.overflow="";S.drawer=null}
+
+/* ============ MODULE TOOLS ============ */
+const TOOLS={};
+/* 1 Detection: event IDs now need word boundaries, so ports, PIDs and timestamps no longer trigger rules */
+const cnt=(t,re)=>(t.match(re)||[]).length;
+/* lab evidence often summarises bursts ("repeated 14 times", "x11 more"), so those count as events too */
+const fails=t=>cnt(t,/\b4625\b|failed password|failed logon/gi)+[...t.matchAll(/repeated (\d+) times|\(x(\d+) more/gi)].reduce((s,m)=>s+ +(m[1]||m[2]),0);
+const SIG={
+ "T1110.001":t=>{const n=fails(t);return n>=5?`${n} failed logon events (rule fires at 10 in 5 minutes; tester threshold 5)`:null},
+ "T1110.003":t=>{const names=new Set([...t.matchAll(/account(?: name)?:\s*([^\s]+)|for (?:invalid user )?([\w.-]+) from/gi)].map(m=>(m[1]||m[2]||"").toLowerCase()));const da=+((t.match(/(\d+) distinct accounts/i)||[])[1]||0);const acc=Math.max(names.size,da);const n=fails(t)+(da>names.size?da-names.size:0);return n>=8&&acc>=4?`${n} failures across ${acc} accounts: one password tried on many accounts`:null},
+ "T1059.001":t=>/powershell/i.test(t)&&/-enc\b|encodedcommand|-w hidden|-windowstyle hidden|downloadstring|invoke-expression|\biex\b/i.test(t)?"PowerShell with encoded or hidden execution flags":null,
+ "T1003.001":t=>/lsass/i.test(t)&&/processaccess|grantedaccess|mimikatz|sekurlsa|\b0x1010\b|\b0x1410\b|\b0x1438\b/i.test(t)?"A process opening LSASS memory with a credential dumping access mask":null,
+ "T1053.005":t=>(/\b4698\b/.test(t)||/schtasks/i.test(t))&&/\/create|scheduled task was created/i.test(t)?"Scheduled task creation (4698 or schtasks /create)":null,
+ "T1136.001":t=>/\b(?:EventID|EventCode|Event ID)[=:\s]*(?:4720|4732)\b/i.test(t)||(/account (?:was )?created|added to a security/i.test(t)&&/administrators|domain admins/i.test(t))?"Account creation (4720) or privileged group change (4732)":null,
+ "T1021.002":t=>/psexec|psexesvc|admin\$/i.test(t)?"PsExec style remote execution over admin shares":null,
+ "T1490":t=>(/vssadmin/i.test(t)&&/delete shadows/i.test(t))||(/wmic/i.test(t)&&/shadowcopy delete/i.test(t))||(/bcdedit/i.test(t)&&/recoveryenabled no/i.test(t))||(/wbadmin/i.test(t)&&/delete/i.test(t))?"Shadow copy or recovery destruction: the ransomware precursor":null,
+ "T1547.001":t=>/currentversion\\run\b/i.test(t)||(/registry value set|run key/i.test(t)&&/appdata|\\temp\\|users\\public|programdata/i.test(t))?"Run key persistence pointing into a user writable path":null,
+ "T1071.004":t=>{const n=[...t.matchAll(/\b([a-z0-9_-]{28,})\./gi)].length+ +((t.match(/(\d+) similar [\w-]+ subdomains/i)||[])[1]||0);return n>=3?`${n} abnormally long DNS labels: the tunneling pattern`:null}};
+TOOLS[1]=m=>`<div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start" id="tgrid"><div class="card"><label class="f" for="dsamp">Load sample evidence</label><select class="in" id="dsamp"><option value="">Choose a sample…</option>${m.items.map((i,ix)=>`<option value="${ix}">${esc(i.code)} · ${esc(i.title.slice(0,60))}</option>`).join("")}<option value="benign">Benign: normal admin activity</option></select>
+ <label class="f" for="dtext" style="margin-top:12px">Paste log lines</label><textarea class="in" id="dtext" placeholder="Paste Windows, Sysmon, Linux or DNS log text"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-act="run-det">Run all ${m.items.length} rules</button></div></div><div id="tout"><div class="card"><p class="dim">Results show here. Each rule is tested with the signature its own logic describes.</p></div></div></div>`;
+function runDet(){const t=$("#dtext").value;if(!t.trim()){toast("Paste some log text first");return}const m=MOD[1];const res=m.items.map(i=>({i,hit:SIG[i.tech]?SIG[i.tech](t):null}));const fired=res.filter(r=>r.hit);
+ logAct("detection",`Detection test: ${fired.length} of ${m.items.length} rules fired`);
+ $("#tout").innerHTML=`<div class="card"><h3>${fired.length} of ${m.items.length} rules fired</h3><div class="list" style="margin-top:10px">${res.sort((a,b)=>(b.hit?1:0)-(a.hit?1:0)).map(r=>`<div class="it" style="cursor:default"><span class="dot ${r.hit?r.i.sev:""}" style="${r.hit?"":"color:var(--s3)"}"></span><span><span class="nm">${esc(r.i.title)}</span><span class="meta" style="display:block">${esc(r.i.tech)} · ${r.hit?esc(r.hit):"No match"}</span></span>${r.hit?sevTag(r.i.sev):`<span class="st">quiet</span>`}</div>`).join("")}</div></div>`}
+/* 2 SIEM log search */
+const srcClass=s=>{s=s.toLowerCase();if(s.includes("firewall"))return"firewall";if(s.includes("linux")||s.includes("auth.log"))return"linux";if(/windows|sysmon|event log|directory/.test(s))return"windows";return"other"};
+TOOLS[2]=()=>`<div class="card"><div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr) auto;align-items:end" id="tgrid"><div><label class="f" for="lq">Search terms (all must match)</label><input class="in mono" id="lq" placeholder="203.0.113.87 4625" value="${esc(S.sel.lq||"")}"></div><div><label class="f" for="lsrc">Source</label><select class="in" id="lsrc">${["all","windows","linux","firewall","other"].map(s=>`<option ${S.sel.lsrc===s?"selected":""}>${s}</option>`).join("")}</select></div><button class="btn" data-act="run-logs">Search</button></div>
+ <div class="chips" style="margin-top:10px">${["203.0.113.87","198.51.100.23","4625","sudo","upd.exe","8443"].map(x=>`<button class="chip" data-lqs="${x}">${x}</button>`).join("")}</div></div><div id="tout" class="sec"></div>`;
+function runLogs(){const q=$("#lq").value.trim(),src=$("#lsrc").value;S.sel.lq=q;S.sel.lsrc=src;if(!q){toast("Type a search term");return}const terms=q.toLowerCase().split(/\s+/);const hits=[];let total=0;
+ for(const i of ITEMS){if(src!=="all"&&srcClass(i.src)!==src)continue;for(const l of i.ev.split("\n")){total++;const ll=l.toLowerCase();if(l.trim()&&terms.every(x=>ll.includes(x))){hits.push({i,l:l.trim()});}}}
+ logAct("log-search",`Log search "${q}": ${hits.length} lines`);
+ const mark=s=>{let h=esc(s);for(const x of terms){if(!x)continue;h=h.replace(new RegExp(x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/&/g,"&amp;").replace(/</g,"&lt;"),"gi"),mm=>`<mark>${mm}</mark>`)}return h};
+ $("#tout").innerHTML=`<p class="dim" style="margin-bottom:10px">${hits.length} matching lines out of ${fmt(total)} searched${hits.length>80?" (first 80 shown)":""}.</p><div class="list">${hits.slice(0,80).map(h=>`<button class="it" data-open="${h.i.k}" style="grid-template-columns:auto minmax(0,1fr)"><span class="dot ${h.i.sev}"></span><span><span class="meta">${esc(h.i.code)} · ${esc(MODSHORT[h.i.num])} · ${esc(srcClass(h.i.src))}</span><span class="mono" style="display:block;font-size:13px;word-break:break-word">${mark(h.l.slice(0,500))}</span></span></button>`).join("")}</div>`}
+/* 3 YARA: regex strings with escaped slashes, single $id references, entropy */
+function yaraStrings(logic){const a=logic.indexOf("strings:"),b=logic.indexOf("condition:");if(a<0||b<=a)return[];const out=[];
+ for(const line of logic.slice(a,b).split("\n")){const m=line.match(/(\$\w+)\s*=\s*(.+)$/);if(!m)continue;const raw=m[2].trim();
+  if(raw[0]==='"'){let j=1,v="";while(j<raw.length&&raw[j]!=='"'){if(raw[j]==="\\"&&j+1<raw.length){v+=raw[j+1]==="n"?"\n":raw[j+1];j+=2}else v+=raw[j++]}out.push({id:m[1],v,re:false})}
+  else if(raw[0]==="/"){let j=1;while(j<raw.length&&raw[j]!=="/"){if(raw[j]==="\\")j++;j++}out.push({id:m[1],v:raw.slice(1,j),re:true})}}
+ return out}
+function yaraEval(logic,matched,all,bytes){const ci=logic.indexOf("condition:");if(ci<0)return null;const L=[];for(const line of logic.slice(ci+10).split("\n")){const t=line.trim();if(t==="}"||t.startsWith("//")||t.startsWith("/*"))break;L.push(t)}
+ let e=L.join(" ");const grp=id=>(id.match(/^\$([a-zA-Z]+)/)||[])[1]||"";const cg=p=>matched.filter(s=>grp(s.id)===p.replace(/_+$/,"")).length;const has=new Set(matched.map(s=>s.id));
+ e=e.replace(/(\d+)\s+of\s+\(\$(\w+?)\*\)/gi,(_,n,g)=>cg(g)>=+n?"true":"false").replace(/any\s+of\s+\(\$(\w+?)\*\)/gi,(_,g)=>cg(g)>=1?"true":"false").replace(/(\d+)\s+of\s+them/gi,(_,n)=>matched.length>=+n?"true":"false").replace(/any\s+of\s+them/gi,matched.length?"true":"false").replace(/all\s+of\s+them/gi,all.length&&matched.length===all.length?"true":"false")
+  .replace(/filesize\s*<\s*(\d+)\s*KB/gi,(_,n)=>bytes<n*1024?"true":"false").replace(/filesize\s*<\s*(\d+)\s*MB/gi,(_,n)=>bytes<n*1048576?"true":"false").replace(/filesize\s*<\s*(\d+)/gi,(_,n)=>bytes<+n?"true":"false").replace(/\$\w+\b(?!\*)/g,id=>has.has(id)?"true":"false");
+ if(!/^(true|false|\(|\)|\s|and|or|not)+$/.test(e))return null;const tk=e.match(/true|false|and|or|not|\(|\)/g)||[];let p=0;
+ const prim=()=>{const t=tk[p++];if(t==="true")return true;if(t==="false")return false;if(t==="not")return!prim();if(t==="("){const v=or();if(tk[p]===")")p++;return v}return false};
+ const and=()=>{let v=prim();while(tk[p]==="and"){p++;const r=prim();v=v&&r}return v};const or=()=>{let v=and();while(tk[p]==="or"){p++;const r=and();v=v||r}return v};return or()}
+const entropy=t=>{if(!t)return 0;const f=new Map();for(const c of t)f.set(c,(f.get(c)||0)+1);let h=0;const n=[...t].length;for(const v of f.values()){const q=v/n;h-=q*Math.log2(q)}return Math.round(h*100)/100};
+TOOLS[3]=m=>`<div class="grid" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start" id="tgrid"><div class="card"><label class="f" for="ysamp">Load sample</label><select class="in" id="ysamp"><option value="">Choose…</option>${m.items.map((i,ix)=>`<option value="${ix}">${esc(i.code)} evidence</option>`).join("")}<option value="note">Ransom note (written for this console)</option><option value="benign">Benign: meeting notes</option></select>
+ <label class="f" for="yfn" style="margin-top:12px">Filename</label><input class="in mono" id="yfn" placeholder="README_RESTORE.txt"><label class="f" for="ytx" style="margin-top:12px">File content</label><textarea class="in" id="ytx" placeholder="Paste text content"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-act="run-yara">Scan with the rule pack</button></div></div><div id="tout"><div class="card"><p class="dim">Strings are parsed from each rule. Conditions such as "2 of ($x*)", "any of them", single $ids and filesize limits are evaluated. Rules using byte-level checks show as not evaluable.</p></div></div></div>`;
+function runYara(){const fn=$("#yfn").value.trim()||"untitled.txt",tx=$("#ytx").value;const bytes=new TextEncoder().encode(tx).length;const res=[];
+ for(const i of MOD[3].items){const ss=yaraStrings(i.logic);if(!ss.length)continue;const mt=ss.filter(s=>{const hs=[tx,fn];if(s.re){try{const r=new RegExp(s.v,"i");return hs.some(h=>r.test(h))}catch{return false}}return hs.some(h=>h.toLowerCase().includes(s.v.toLowerCase()))});res.push({i,mt,n:ss.length,ok:yaraEval(i.logic,mt,ss,bytes)})}
+ const ext=fn.toLowerCase().match(/\.(lockbit|blackcat|alphv|royal|locked|encrypted)$/);const fired=res.filter(r=>r.ok===true);const H=entropy(tx);
+ logAct("yara",`YARA scan of ${fn}: ${fired.length} rule(s) matched`);
+ $("#tout").innerHTML=`<div class="card"><h3>${fired.length} rule${fired.length===1?"":"s"} matched</h3><p class="dim" style="font-size:14px">Content entropy ${H} bits per character${H>5.5?", high for text: possibly encoded or encrypted":""}.${ext?` Filename ends in ${esc(ext[0])}, a known ransomware extension.`:""}</p><div class="list" style="margin-top:10px">${res.sort((a,b)=>(b.ok===true)-(a.ok===true)||b.mt.length-a.mt.length).map(r=>`<button class="it" data-open="${r.i.k}"><span class="dot ${r.ok?r.i.sev:""}" style="${r.ok?"":"color:var(--s3)"}"></span><span><span class="nm">${esc(r.i.code)} · ${esc(r.i.title.slice(0,70))}</span><span class="meta" style="display:block">${r.mt.length} of ${r.n} strings${r.mt.length?": "+esc(r.mt.map(s=>s.id).join(", ")):""}</span></span><span class="st ${r.ok?"resolved":""}">${r.ok===true?"match":r.ok===null?"n/a":"no"}</span></button>`).join("")}</div></div>`}
+/* 4 Hunts */
+TOOLS[4]=m=>{const sel=m.items[S.sel.hunt||0];return`<div class="chips" style="margin-bottom:12px">${m.items.map((i,ix)=>`<button class="chip" data-hunt="${ix}" aria-pressed="${i===sel}">${esc(i.code)}</button>`).join("")}</div><div class="grid g2" style="align-items:start"><div class="card"><h3>${esc(sel.title)}</h3><p class="dim" style="font-size:14px">${sevTag(sel.sev)} · ${esc(sel.tech)} · ${esc(sel.tactic)}</p><label class="f" style="margin-top:12px">Hunt query</label><pre>${esc(sel.logic)}</pre><div class="row" style="margin-top:10px"><button class="btn" data-act="run-hunt">Run hunt</button><button class="btn ghost" data-open="${sel.k}">Full finding</button></div></div><div id="tout"><div class="card"><p class="dim">Run the hunt to replay its telemetry results on a timeline.</p></div></div></div>`};
+function runHunt(){const i=MOD[4].items[S.sel.hunt||0];logAct("hunt",`Hunt run: ${i.code} ${i.title.slice(0,50)}`);$("#tout").innerHTML=`<div class="card"><h3>Results</h3><div style="margin-top:10px">${timeline([i])}</div><label class="f" style="margin-top:10px">Raw result</label><pre>${linkify(i.ev)}</pre><label class="f" style="margin-top:10px">Next steps</label><pre>${linkify(i.triage)}</pre></div>`}
+/* 5 Enrichment: boundary-safe matching so 10.0.0.1 no longer matches 10.0.0.12 */
+const reEsc=s=>s.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+TOOLS[5]=m=>{const quick=m.items.map(i=>(i.title.match(/^(?:IP|Domain|URL|Hash|File|SHA-?256|Email)[^:]*:\s*(.+?)\s+—/i)||[])[1]).filter(Boolean);return`<div class="card"><div class="grid" style="grid-template-columns:minmax(0,1fr) auto;align-items:end"><div><label class="f" for="eq">IP, domain, URL, filename or hash</label><input class="in mono" id="eq" value="${esc(S.sel.eq||"")}" placeholder="203.0.113.87"></div><button class="btn" data-act="run-enrich">Enrich</button></div><div class="chips" style="margin-top:10px">${[...new Set([...quick,"Invoice_Q3.docm","upd.exe"])].slice(0,9).map(x=>`<button class="chip mono" data-enrich="${esc(x)}">${esc(x)}</button>`).join("")}</div></div><div id="tout" class="sec"></div>`};
+function runEnrich(v){const q=(v??$("#eq").value).trim();S.sel.eq=q;if(q.length<2){toast("Enter an indicator");return}
+ const re=new RegExp(`(^|[^0-9a-z_.])${reEsc(q.toLowerCase())}(?=$|[^0-9a-z_]|\\.(?![0-9a-z]))`,"i");const hits=[],rel=new Set();
+ for(const i of ITEMS){const hay=`${i.code} ${i.title}\n${i.ev}\n${i.logic}\n${i.triage}`;if(!re.test(hay))continue;const ex=(i.ev.split("\n").filter(l=>re.test(l)).slice(0,3).join("\n"))||(i.title);hits.push({i,ex});for(const m of (i.title+" "+i.ev).match(IOC_RE)||[])if(m.toLowerCase()!==q.toLowerCase()&&!/^\d+\.\d+$/.test(m))rel.add(m)}
+ hits.sort((a,b)=>SW[b.i.sev]-SW[a.i.sev]);const max=hits[0]?.i.sev;
+ const verdict=!hits.length?"Not seen anywhere in the lab data from the 13 modules.":max==="critical"||max==="high"?"Malicious in this incident. It appears in high severity evidence across modules: block it and treat the infrastructure as compromised.":max==="medium"?"Suspicious. Seen in medium severity evidence: investigate before blocking.":"Low risk. Seen only in low severity or control context.";
+ logAct("enrichment",`Enrichment ${q}: ${hits.length} record(s)`);
+ const mods=[...new Set(hits.map(h=>h.i.num))];
+ const box=$("#tout");if(!box)return;box.innerHTML=`<div class="card"><div class="row" style="justify-content:space-between"><h3 class="mono">${esc(q)}</h3>${max?sevTag(max):`<span class="tag">No hits</span>`}</div><p style="margin-top:8px">${verdict}</p>${hits.length?`<p class="dim" style="font-size:14px;margin-top:6px">Seen in ${hits.length} findings across ${mods.length} modules: ${mods.map(n=>MODSHORT[n]).join(", ")}.</p>`:""}${rel.size?`<label class="f" style="margin-top:12px">Seen alongside</label><div class="chips">${[...rel].slice(0,12).map(x=>`<button class="ioc" data-enrich="${esc(x)}">${esc(x)}</button>`).join("")}</div>`:""}</div>
+  <div class="list sec">${hits.map(h=>`<button class="it" data-open="${h.i.k}" style="grid-template-columns:auto minmax(0,1fr)"><span class="dot ${h.i.sev}"></span><span><span class="nm">${esc(h.i.code)} · ${esc(h.i.title.slice(0,80))}</span><span class="meta" style="display:block">${esc(MODSHORT[h.i.num])} · ${esc(h.i.tech)}</span><span class="mono" style="display:block;font-size:12.5px;margin-top:4px;color:var(--dim);white-space:pre-wrap;word-break:break-word">${esc(h.ex.slice(0,400))}</span></span></button>`).join("")}</div>`}
+/* 6 Sandbox replay, 7 super-timeline */
+TOOLS[6]=m=>{const sel=m.items[S.sel.sbx||0];return`<div class="chips" style="margin-bottom:12px">${m.items.map((i,ix)=>`<button class="chip" data-sbx="${ix}" aria-pressed="${i===sel}">${esc(i.code)}</button>`).join("")}</div><div class="card"><h3>${esc(sel.title)}</h3><p class="dim" style="font-size:14px">${sevTag(sel.sev)} · ${esc(sel.tech)}</p><div style="margin-top:12px">${/T\+\d|\d{2}:\d{2}/.test(sel.ev)?timeline([sel]):`<pre>${linkify(sel.ev)}</pre>`}</div><div class="row" style="margin-top:8px"><button class="btn ghost" data-open="${sel.k}">Full finding</button></div></div>`};
+TOOLS[7]=m=>`<div class="card"><h3>Every artifact on one clock</h3><p class="dim" style="font-size:14px">Timed lines from all ${m.items.length} forensic records merged in order. Time-only lines are placed on the lab date, 20 Nov 2026 UTC.</p><div style="margin-top:14px">${timeline(m.items)}</div></div>`;
+/* 8, 9, 10, 12 posture board */
+function postureTool(m){const s=[...m.items].sort((a,b)=>SW[b.sev]-SW[a.sev]);const done=s.filter(i=>statusOf(i.k)==="resolved").length;
+ return`<div class="card"><div class="row" style="justify-content:space-between"><h3>${done} of ${s.length} fixed</h3><span class="dim" style="font-size:14px">Tick a finding once its first remediation step is done.</span></div><div class="meter" style="margin-top:8px"><i style="width:${done/s.length*100}%"></i></div>
+ <table class="stack" style="margin-top:12px"><thead><tr><th>Fixed</th><th>Finding</th><th>First remediation step</th></tr></thead><tbody>${s.map(i=>`<tr><td><input type="checkbox" data-fix="${i.k}" ${statusOf(i.k)==="resolved"?"checked":""} aria-label="Mark ${esc(i.code)} fixed" style="width:22px;height:22px"></td><td><button class="ref" data-open="${i.k}">${esc(i.code)}</button> ${sevTag(i.sev)}<br><span style="font-size:14px">${esc(i.title)}</span></td><td class="dim" style="font-size:14px">${linkify((i.triage.split("\n")[0]||"").replace(/^\d+\.\s*/,""))}</td></tr>`).join("")}</tbody></table></div>`}
+/* 11 patch order */
+TOOLS[11]=m=>{const ord=vulnOrder();return`<div class="card"><div class="row" style="justify-content:space-between"><h3>Patch order</h3><button class="chip" data-act="vreset">Reset to project order</button></div><p class="dim" style="font-size:14px">The project's own priority comes first. Move a finding up or down to plan your own order. Saved in this browser.</p><div class="list" style="margin-top:12px">${ord.map((k,ix)=>{const i=ITEMS.find(x=>x.k===k);return`<div class="it" style="grid-template-columns:auto minmax(0,1fr) auto"><span class="mono" style="font-size:20px;font-weight:300;width:28px">${ix+1}</span><span><button class="ref" data-open="${k}">${esc(i.code)}</button> ${sevTag(i.sev)} <span class="mono faint" style="font-size:12px">${esc(i.tech)}</span><span class="nm" style="display:block;margin-top:2px">${esc(i.title)}</span></span><span class="row" style="gap:4px"><button class="chip" data-vmove="${ix}:-1" aria-label="Move up" ${ix===0?"disabled":""}>↑</button><button class="chip" data-vmove="${ix}:1" aria-label="Move down" ${ix===ord.length-1?"disabled":""}>↓</button></span></div>`}).join("")}</div></div>`};
+function vulnOrder(){const def=MOD[11].items.map(i=>i.k);const o=P.vulnOrder;return Array.isArray(o)&&o.length===def.length&&def.every(k=>o.includes(k))?o:def}
+/* 13 phishing classifier, fixed: org domains instead of any "lab" text, brand checks on whole domain labels, attachments read only from attachment fields */
+const BRANDS=[["microsoft",["microsoft.com","outlook.com","live.com","office365.com"]],["paypal",["paypal.com"]],["apple",["apple.com","icloud.com"]],["google",["google.com","gmail.com"]],["amazon",["amazon.com","amazon.ca"]],["netflix",["netflix.com"]]];
+const ORG=["lab.example"];
+const URG=["urgent","immediately","expires today","within 24 hours","account suspended","verify now","act now","final notice","unauthorized","confirm your","password expires","gift card","wire transfer","confidential","do not share","mailbox quota"];
+const domOf=a=>((a.match(/@([^\s>]+)/)||[])[1]||"").toLowerCase().replace(/[.)>]+$/,"");
+const official=(d,list)=>list.some(x=>d===x||d.endsWith("."+x));
+const labels=d=>d.split(/[.-]/).filter(Boolean);
+const norm=s=>s.replace(/0/g,"o").replace(/1/g,"l").replace(/3/g,"e").replace(/5/g,"s");
+function classify(x){const sg=[];let hard=null;const all=x.headers+"\n"+x.body,fd=domOf(x.from),disp=(x.from.split("<")[0]||"").toLowerCase();const add=(label,pts,detail)=>sg.push({label,pts,detail});
+ const dm=/dmarc=fail/i.test(all),sp=/spf=fail/i.test(all),dk=/dkim=fail/i.test(all),dn=/dkim=none/i.test(all),pass=/dmarc=pass/i.test(all)&&/spf=pass/i.test(all)&&/dkim=pass/i.test(all);
+ if(dm)add("DMARC fail",30,"From domain does not align with SPF or DKIM.");if(sp)add("SPF fail",12,"Sending server is not authorized for the From domain.");if(dk)add("DKIM fail",8,"Signature does not verify.");else if(dn)add("No DKIM signature",6,"The message is unsigned.");
+ const rp=domOf((all.match(/return-path:\s*<?([^\s>]+)/i)||[])[1]||"");if(rp&&fd&&rp!==fd)add("Return-Path mismatch",10,`Return-Path ${rp} differs from From ${fd}.`);
+ if(dm&&/(password|credential|payment|invoice|payroll)/i.test(x.subject))hard="PHISH-01 hard rule: DMARC fail on a credential or payment message goes to review at minimum.";
+ const fl=labels(fd);for(const[b,doms]of BRANDS){if(!fd||official(fd,doms))continue;if(fl.includes(b))add("Lookalike domain",25,`${fd} uses "${b}" but is not an official ${b} domain.`);else if(fl.some(l=>norm(l)===b))add("Homoglyph domain",25,`${fd} reads as ${b} once digit swaps are undone.`);else if(new RegExp(`\\b${b}\\b`).test(disp))add("Display name impersonation",15,`Display name claims ${b} but mail comes from ${fd}.`)}
+ if(/(helpdesk|it support|support team)/i.test(disp)&&fd&&!ORG.some(o=>fd===o||fd.endsWith("."+o)))add("Borrowed internal identity",12,"An internal sounding name from an outside domain.");
+ const urls=[...all.matchAll(/https?:\/\/[^\s"'<>)\]]+/gi)].map(m=>m[0].replace(/[.,;]+$/,""));
+ for(const u of urls.slice(0,5)){let h="";try{h=new URL(u).hostname.toLowerCase()}catch{}if(!h)continue;if(/^\d+\.\d+\.\d+\.\d+$/.test(h))add("IP literal URL",20,`${u} uses a raw IP.`);if(h.startsWith("xn--"))add("Punycode URL",15,`${h} is punycode.`);if(/^(bit\.ly|tinyurl\.com|t\.co|goo\.gl|rb\.gy)$/.test(h))add("URL shortener",10,`${h} hides the destination.`);
+  for(const[b,doms]of BRANDS)if(!official(h,doms)&&labels(h).some(l=>norm(l)===b))add("Lookalike URL domain",20,`Link host ${h} imitates ${b}.`);
+  if(/(login|verify|secure|update|confirm)/i.test(u)&&fd&&!(h===fd||h.endsWith("."+fd)))add("Credential keywords in URL",8,`${u} is not on the sender's domain.`)}
+ const text=(x.subject+" "+x.body).toLowerCase(),uh=URG.filter(w=>text.includes(w));if(uh.length)add("Urgency language",Math.min(16,uh.length*4),"Matched: "+uh.join(", ")+".");
+ const att=[...(all.matchAll(/filename="?([^"\s;]+)"?/gi))].map(m=>m[1]).concat([...x.body.matchAll(/\b(?:attachment|attached)s?\s*:\s*([^\s,]+)/gi)].map(m=>m[1]));
+ if(att.some(a=>/\.docm$/i.test(a)))add("Macro document attachment",18,"A .docm macro document is attached, the Invoice_Q3.docm lure pattern.");
+ if(att.some(a=>/\.(exe|scr|js|vbs)$/i.test(a)))add("Executable attachment",20,"An executable or script is attached.");else if(att.some(a=>/\.(zip|html?|iso)$/i.test(a)))add("Container attachment",10,"A zip, html or iso can hide the payload.");
+ if(/(gift card|wire transfer|payment|payroll|invoice)/i.test(text)&&/\b(ceo|chief executive|director|president)\b/i.test(x.from+" "+x.body)&&!urls.length){add("BEC pattern",25,"Executive payment request with no link to inspect.");hard="PHISH-07 hard rule: executive payment requests need out-of-band verification whatever the score."}
+ let score=sg.reduce((s,v)=>s+v.pts,0);if(hard&&score<50)score=50;if(pass&&!hard&&score>45){add("Full authentication pass (cap)",0,"SPF, DKIM and DMARC align, so language alone cannot pass the review band.");score=45}
+ score=Math.min(100,score);return{score,sg,hard,band:score>=85?"Quarantine":score>=50?"Analyst review":"Deliver"}}
+const PHS=[
+ {label:"PH-014 phishing (from Project 13)",from:'"Microsoft 365 Support" <support@micros0ft-secure.example>',subject:"Action required: your password expires today",headers:"Return-Path: <bounce@bulk-mailer-77.example>\nAuthentication-Results: spf=fail; dkim=none; dmarc=fail",body:"Your password expires today. Verify now to keep access: http://micros0ft-secure.example/login — act now, this is urgent and final notice. Attachment: Invoice_Q3.docm"},
+ {label:"Legitimate IT notice (control)",from:'"IT Helpdesk" <helpdesk@lab.example>',subject:"Planned maintenance Sunday 02:00",headers:"Return-Path: <helpdesk@lab.example>\nAuthentication-Results: spf=pass; dkim=pass; dmarc=pass",body:"The lab VPN will be down for planned maintenance on Sunday at 02:00 for about 30 minutes. No action is needed. Details are on the intranet status page."},
+ {label:"Gift card request (written for this console)",from:'"Dana Reyes, CEO" <dana.reyes.office@mail-desk.example>',subject:"Quick favour",headers:"Return-Path: <dana.reyes.office@mail-desk.example>\nAuthentication-Results: spf=pass; dkim=pass; dmarc=pass",body:"Are you at your desk? I need you to buy five gift cards for a client today. Keep this confidential and do not share it. I am in meetings, reply by email only."}];
+TOOLS[13]=()=>`<div class="grid" style="grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);align-items:start" id="tgrid"><div class="card"><label class="f">Samples</label><div class="chips">${PHS.map((p,ix)=>`<button class="chip" data-phs="${ix}">${esc(p.label)}</button>`).join("")}</div>
+ <label class="f" for="pf" style="margin-top:12px">From</label><input class="in mono" id="pf"><label class="f" for="ps" style="margin-top:10px">Subject</label><input class="in" id="ps"><label class="f" for="ph" style="margin-top:10px">Headers</label><textarea class="in" id="ph" style="min-height:80px"></textarea><label class="f" for="pb" style="margin-top:10px">Body</label><textarea class="in" id="pb"></textarea><div class="row" style="margin-top:10px"><button class="btn" data-act="run-phish">Classify</button></div></div><div id="tout"><div class="card"><p class="dim">Score bands: 85 or more is quarantined, 50 to 84 goes to an analyst, under 50 is delivered.</p></div></div></div>`;
+function runPhish(){const x={from:$("#pf").value,subject:$("#ps").value,headers:$("#ph").value,body:$("#pb").value};if(!x.from.trim()&&!x.body.trim()){toast("Load a sample or paste an email");return}const r=classify(x);
+ logAct("classify",`Email classified: ${r.band} (${r.score})`);const col=r.score>=85?"var(--crit)":r.score>=50?"var(--med)":"var(--good)";
+ $("#tout").innerHTML=`<div class="card"><div class="row" style="justify-content:space-between;align-items:end"><div><div class="score" style="color:${col}">${r.score}</div><p class="dim">out of 100</p></div><span class="tag" style="color:${col};border-color:${col};font-size:15px">${r.band}</span></div><div class="meter" style="margin-top:12px"><i style="width:${r.score}%;background:${col}"></i></div>${r.hard?`<p class="note" style="margin-top:12px">${esc(r.hard)}</p>`:""}
+ <div class="list" style="margin-top:12px">${r.sg.map(s=>`<div class="it" style="cursor:default;grid-template-columns:minmax(0,1fr) auto"><span><span class="nm">${esc(s.label)}</span><span class="meta" style="display:block">${esc(s.detail)}</span></span><span class="mono">+${s.pts}</span></div>`).join("")||`<p class="dim">No phishing signals found.</p>`}</div></div>`}
+
+/* ============ LIVE DATA ============ */
+const SITE="https://ikjotsingh27.github.io/ottawa-ops-console/";
+let LIVE=null,HIST=null,LIVE_ERR=null;
+const ageMin=iso=>iso?Math.round((Date.now()-Date.parse(iso))/60000):null;
+function ago(iso){const m=ageMin(iso);if(m==null)return"never";if(m<1)return"just now";if(m<60)return m+" min ago";const h=Math.round(m/60);if(h<48)return h+" h ago";return Math.round(h/24)+" days ago"}
+const freshCls=src=>{if(!src||!src.fetchedAt)return"";const m=ageMin(src.fetchedAt);return !src.ok&&m>180?"bad":m<=90?"ok":m<=360?"warn":"bad"};
+const L=id=>LIVE?.sources?.[id]||null;
+function freshTag(id){const s=L(id);if(!s)return`<span class="fresh"><i></i>Not connected</span>`;return`<span class="fresh" title="${esc(s.error||"")}"><i class="${freshCls(s)}"></i>${s.ok?"Updated "+ago(s.fetchedAt):s.fetchedAt?"Feed down, showing data from "+ago(s.fetchedAt):"Feed down"} · <a href="${esc(s.page)}" target="_blank" rel="noopener">source</a></span>`}
+function liveMissing(){return`<div class="notice"><b>Live feeds are not connected in this copy.</b> They refresh every hour on the published site: <a href="${SITE}" target="_blank" rel="noopener">${SITE}</a>. Everything else on this page still works.</div>`}
+async function loadLive(){try{const[a,b]=await Promise.all([fetch("live.json?t="+Date.now(),{cache:"no-store"}),fetch("history.json?t="+Date.now(),{cache:"no-store"})]);if(!a.ok)throw new Error("HTTP "+a.status);LIVE=await a.json();HIST=b.ok?await b.json():null;LIVE_ERR=null}catch(e){LIVE_ERR=String(e.message||e)}updatePill()}
+function updatePill(){const el=$("#livep");if(!el)return;const g=LIVE?.generatedAt;const srcs=Object.values(LIVE?.sources||{});const ok=srcs.filter(s=>s.ok).length;const m=ageMin(g);const cls=!g?"":m<=90&&ok===srcs.length?"ok":m<=180?"warn":"bad";el.querySelector("i").className=cls;el.querySelector("span").textContent=g?`Live · ${ok}/${srcs.length} feeds · ${ago(g)}`:"Live feeds offline"}
+const srcLine=o=>o&&o.src?`<p class="faint" style="font-size:12.5px;margin-top:10px">Source: ${esc(o.src)}. <a href="${esc(o.url)}" target="_blank" rel="noopener">Read it</a></p>`:"";
+function spark(name){const pts=(HIST?.border||[]).slice(-24).map(s=>s.w?.[name]).map(v=>typeof v==="number"?v:null);if(pts.filter(v=>v!=null).length<2)return`<span class="faint" style="font-size:12px">building history</span>`;const max=Math.max(5,...pts.filter(v=>v!=null));const W=120,H=28;const xy=pts.map((v,i)=>v==null?null:`${(i/(pts.length-1)*W).toFixed(1)},${(H-2-(v/max)*(H-4)).toFixed(1)}`).filter(Boolean).join(" ");return`<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Wait time trend, last ${pts.length} hourly checks, max ${max} minutes"><polyline points="${xy}" fill="none" stroke="var(--acc)" stroke-width="1.6"/></svg>`}
+const waitTxt=v=>v==null?"n/a":v==="closed"?"Closed":v===0?"No delay":v+" min";
+
+function vLive(){
+  if(!LIVE)return`<div class="head"><div><h1>Live conditions</h1><p>What is happening in and around Ottawa right now: weather alerts, border crossings and road incidents, checked every hour.</p></div></div>${liveMissing()}`;
+  const w=L("weather"),b=L("border"),t=L("traffic");const wd=w?.data,bd=b?.data,td=t?.data;
+  const tp=S.sel.tpri||"all";
+  const local=(bd?.crossings||[]).filter(c=>c.local);
+  const busiest=(bd?.crossings||[]).filter(c=>typeof c.travellers==="number").sort((x,y)=>y.travellers-x.travellers).slice(0,5);
+  const inc=(td?.incidents||[]).filter(e=>tp==="all"||e.priority===tp);
+  return`<div class="head"><div><h1>Live conditions</h1><p>What is happening in and around Ottawa right now. Each feed shows when it last updated, so you never mistake an old reading for a current one.</p></div><span class="tag">Checked hourly · last run ${ago(LIVE.generatedAt)}</span></div>
+  <div class="grid g2">
+   <section class="card"><div class="row" style="justify-content:space-between"><h3>Weather and alerts · Ottawa${infoBtn("live-weather")}</h3>${freshTag("weather")}</div>
+    ${wd?`${wd.alerts.length?wd.alerts.map(a=>`<div class="note" style="margin-top:12px;border-color:var(--crit)"><b style="color:var(--ink)">${esc(a.title)}</b><br>${esc(a.summary.slice(0,260))}${a.link?` <a href="${esc(a.link)}" target="_blank" rel="noopener">Full alert</a>`:""}</div>`).join(""):`<p class="good" style="margin-top:10px;font-weight:600">No watches or warnings in effect.</p>`}
+    ${wd.current?`<div class="row" style="margin-top:14px;gap:18px;align-items:baseline"><span class="kpi"><span class="v">${esc(wd.current.temperature||"")}</span></span><span><b>${esc(wd.current.title)}</b><br><span class="dim" style="font-size:14px">${[wd.current.humidity&&"Humidity "+wd.current.humidity,wd.current.wind&&"Wind "+wd.current.wind,wd.current.aqhi&&"AQHI "+wd.current.aqhi].filter(Boolean).map(esc).join(" · ")}</span></span></div>`:""}
+    ${wd.forecast?.length?`<ul style="margin:12px 0 0;padding-left:18px;font-size:14px" class="dim">${wd.forecast.slice(0,3).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}`:`<p class="dim" style="margin-top:10px">No weather data yet.</p>`}
+   </section>
+   <section class="card"><div class="row" style="justify-content:space-between"><h3>Border crossings near Ottawa${infoBtn("live-border")}</h3>${freshTag("border")}</div>
+    ${local.length?`<table class="stack" style="margin-top:8px"><thead><tr><th>Crossing</th><th class="r">Travellers</th><th class="r">Commercial</th><th>Last 24 checks</th></tr></thead><tbody>${local.map(c=>`<tr><td><b>${esc(c.name)}</b>${c.updated?`<br><span class="faint" style="font-size:12px">${esc(c.updated)}</span>`:""}</td><td class="r">${waitTxt(c.travellers)}</td><td class="r">${waitTxt(c.commercial)}</td><td>${spark(c.name)}</td></tr>`).join("")}</tbody></table>`:`<p class="dim" style="margin-top:10px">No border data yet.</p>`}
+    ${busiest.length?`<h3 style="margin-top:16px;font-size:14px">Longest traveller waits in Canada right now</h3><div style="margin-top:8px">${bars(busiest.map(c=>({label:c.name,v:Math.max(c.travellers,0.5),txt:waitTxt(c.travellers)})),"var(--acc)")}</div>`:""}
+   </section></div>
+  <section class="card sec"><div class="row" style="justify-content:space-between"><h3>City of Ottawa road incidents${infoBtn("live-traffic")}</h3>${freshTag("traffic")}</div>
+   ${td?`<div class="grid g4" style="margin-top:12px">${kpi(td.counts.incidents,"Active incidents","Collisions, emergency closures, hazards")}${kpi(td.counts.highPriority,"High priority","City rates impact as high",td.counts.highPriority?"bad":"")}${kpi(td.counts.construction,"Construction events","Active right now")}${kpi(td.counts.special,"Special events","Planned closures")}</div>
+   <div class="chips" style="margin:14px 0 10px">${["all","HIGH","MEDIUM","LOW"].map(x=>`<button class="chip" data-tpri="${x}" aria-pressed="${tp===x}">${x==="all"?"All priorities":x[0]+x.slice(1).toLowerCase()}</button>`).join("")}</div>
+   <div class="list">${inc.slice(0,15).map(e=>`<div class="it" style="cursor:default;grid-template-columns:auto minmax(0,1fr) auto"><span class="dot ${e.priority==="HIGH"?"critical":e.priority==="MEDIUM"?"medium":"low"}"></span><span><span class="nm">${esc(e.headline||e.sub||"Incident")}</span><span class="meta" style="display:block">${esc([e.main,e.cross1&&"at "+e.cross1,e.area].filter(Boolean).join(" · "))}${e.closure?" · "+esc(e.closure):""}</span>${e.message?`<span class="meta" style="display:block;margin-top:2px">${esc(e.message.slice(0,180))}</span>`:""}</span><span class="st">${esc(e.priority.toLowerCase())}</span></div>`).join("")||`<p class="dim">No active incidents at this priority.</p>`}</div>`:`<p class="dim" style="margin-top:10px">No traffic data yet.</p>`}
+  </section>`;
+}
+function policeYtd(){
+  const s=L("ops");
+  if(!LIVE)return liveMissing();
+  if(!s?.data)return`<div class="notice"><b>The 2026 year to date feed has not loaded yet.</b> ${freshTag("ops")}<br>It comes from the Ottawa Police crime map data, updated daily at 7:30 a.m. Meanwhile, the official 2026 crime map is at <a href="https://data.ottawapolice.ca" target="_blank" rel="noopener">data.ottawapolice.ca</a>.${s?.error?`<br><span class="faint" style="font-size:12.5px">Last error: ${esc(s.error)}</span>`:""}</div>`;
+  const d=s.data;const r=ratio(d.totalYtd,d.totalPrior);
+  return`<div class="row" style="justify-content:space-between;margin-bottom:12px"><p class="dim">Founded incidents reported January 1 to ${esc(d.asOf)}, against the same days of ${d.year-1}. Preliminary: late reports still arrive.</p>${freshTag("ops")}</div>
+  <div class="grid g3">${kpi(fmt(d.totalYtd),`Incidents · ${d.year} to date`,`<span class="chg ${r>0.02?"bad":r<-0.02?"good":"flat"}">${pctTxt(r)}</span> on ${fmt(d.totalPrior)} same period ${d.year-1}`)}</div>
+  <div class="card sec" style="padding:6px 8px"><table class="stack"><thead><tr><th>Category</th><th class="r">${d.year} YTD</th><th class="r">${d.year-1} same period</th><th class="r">Change</th></tr></thead><tbody>${d.rows.map(x=>{const rr=ratio(x.ytd,x.prior);return`<tr><td><b>${esc(x.category)}</b></td><td class="r">${fmt(x.ytd)}</td><td class="r">${fmt(x.prior)}</td><td class="r"><span class="chg ${rr>0.02?"bad":rr<-0.02?"good":"flat"}">${x.prior?pctTxt(rr):"new"}</span></td></tr>`}).join("")}</tbody></table></div>
+  <p class="note sec">Year to date compares like with like (same calendar days). Small categories swing a lot over a few weeks, so read direction over months, not days.</p>`;
+}
+function vFeed(){
+  if(!LIVE)return`<div class="head"><div><h1>Threat feed</h1><p>Today's Canadian cyber alerts and newly exploited vulnerabilities, matched against the software in the lab.</p></div></div>${liveMissing()}`;
+  const c=L("cyber")?.data,k=L("kev")?.data;
+  const inLab=x=>{const v=(x.vendor||"").toLowerCase(),p=(x.product||"").toLowerCase();return LABTEXT.includes(" "+v+" ")||(p.length>3&&LABTEXT.includes(" "+p.split(/\s+/)[0]+" "))};
+  return`<div class="head"><div><h1>Threat feed</h1><p>What changed in the threat picture today: Canadian Cyber Centre alerts and the vulnerabilities CISA has confirmed are being exploited, flagged when they touch software in this lab.</p></div><span class="tag">Checked hourly · last run ${ago(LIVE.generatedAt)}</span></div>
+  ${k?`<div class="grid g4">${kpi(fmt(k.total),"Known exploited vulnerabilities","CISA catalog "+esc(k.catalogVersion||""))}${kpi(k.added7,"Added in the last 7 days","Patch these first",k.added7?"bad":"")}${kpi(k.added30,"Added in the last 30 days","")}${kpi((k.latest||[]).filter(inLab).length,"Latest 15 touching lab software","Vendor or product appears in the lab")}</div>`:""}
+  <div class="grid g2 sec">
+   <section class="card"><div class="row" style="justify-content:space-between"><h3>Cyber Centre alerts and advisories${infoBtn("live-cccs")}</h3>${freshTag("cyber")}</div>
+    <div class="list" style="margin-top:10px">${(c?.items||[]).slice(0,10).map(x=>`<a class="it" href="${esc(x.link)}" target="_blank" rel="noopener" style="grid-template-columns:auto minmax(0,1fr);text-decoration:none;color:inherit"><span class="pill ${x.kind==="Alert"?"signal":"watchp"}">${esc(x.kind||"Item")}</span><span><span class="nm">${esc(x.title)}</span><span class="meta" style="display:block">${x.iso?esc(new Date(x.iso).toLocaleDateString("en-CA",{month:"short",day:"numeric",year:"numeric"})):esc(x.date)}</span></span></a>`).join("")||`<p class="dim">No advisories loaded yet.</p>`}</div></section>
+   <section class="card"><div class="row" style="justify-content:space-between"><h3>Newest known exploited vulnerabilities${infoBtn("live-kev")}</h3>${freshTag("kev")}</div>
+    <div class="list" style="margin-top:10px">${(k?.latest||[]).map(x=>`<div class="it" style="cursor:default;grid-template-columns:minmax(0,1fr) auto"><span><span class="nm"><a href="https://nvd.nist.gov/vuln/detail/${esc(x.cve)}" target="_blank" rel="noopener">${esc(x.cve)}</a> · ${esc(x.vendor)} ${esc(x.product)}</span><span class="meta" style="display:block">${esc(x.name||"")}</span><span class="meta" style="display:block">Added ${esc(x.added)} · federal due date ${esc(x.due||"n/a")}${x.ransomware==="Known"?` · <b class="critical">used in ransomware</b>`:""}</span></span>${inLab(x)?`<span class="pill signal">In lab</span>`:""}</div>`).join("")||`<p class="dim">No vulnerabilities loaded yet.</p>`}</div></section></div>`;
+}
+function liveSourcesTable(){
+  const srcs=Object.entries(LIVE?.sources||{});
+  if(!srcs.length)return liveMissing();
+  return`<div class="card" style="padding:6px 8px"><table class="stack"><thead><tr><th>Feed</th><th>Publisher updates</th><th>Status</th></tr></thead><tbody>${srcs.map(([id,s])=>`<tr><td><b>${esc(s.name)}</b><br><a href="${esc(s.page)}" target="_blank" rel="noopener" style="font-size:13px">Open source</a></td><td class="dim">${esc(s.cadence)}</td><td>${freshTag(id)}${s.ok?"":`<br><span class="faint" style="font-size:12px">${esc((s.error||"").slice(0,140))}</span>`}</td></tr>`).join("")}</tbody></table></div><p class="note sec">This console checks every feed once an hour. A feed is only as fresh as its publisher: border waits change hourly, the police crime map daily, annual reports once a year.</p>`;
+}
+function triageMetrics(){
+  const st=Object.entries(P.states);const res=st.filter(([,v])=>v.status==="resolved"&&v.first&&v.ts?.resolved);
+  const mins=res.map(([,v])=>(Date.parse(v.ts.resolved)-Date.parse(v.first))/60000).filter(x=>x>=0).sort((a,b)=>a-b);
+  const med=mins.length?mins[Math.floor(mins.length/2)]:null;
+  const acked=st.filter(([,v])=>v.ts?.acknowledged&&v.first).map(([,v])=>(Date.parse(v.ts.acknowledged)-Date.parse(v.first))/60000).filter(x=>x>=0).sort((a,b)=>a-b);
+  const mta=acked.length?acked[Math.floor(acked.length/2)]:null;
+  const closed=ITEMS.filter(i=>statusOf(i.k)==="resolved").length;
+  const f=m=>m==null?"n/a":m<60?Math.max(1,Math.round(m))+" min":(m/60).toFixed(1)+" h";
+  return`<div class="sec" style="margin-top:0;margin-bottom:14px"><h2>Your triage performance${infoBtn("triage-metrics")}</h2><div class="grid g3">${kpi((closed/ITEMS.length*100).toFixed(0)+"%","Closure rate",`${closed} of ${ITEMS.length} findings resolved`)}${kpi(f(mta),"Median time to acknowledge","From first opening a finding")}${kpi(f(med),"Median time to resolve","From first opening to resolved")}</div></div>`;
+}
+function situation(){
+  if(!LIVE)return`<section class="sec" style="margin-top:0;margin-bottom:22px"><h2>Situation now${infoBtn("situation")}</h2>${liveMissing()}</section>`;
+  const wd=L("weather")?.data,bd=L("border")?.data,td=L("traffic")?.data,cd=L("cyber")?.data,kd=L("kev")?.data;
+  const local=(bd?.crossings||[]).filter(c=>c.local&&typeof c.travellers==="number");const mx=local.sort((a,b)=>b.travellers-a.travellers)[0];
+  const tile=(go,label,big,sub,id)=>`<button class="tile" data-go="${go}"><span class="row" style="justify-content:space-between;width:100%"><b style="font-size:14px">${label}</b>${freshTag(id).replace(/ · <a[^>]*>source<\/a>/,"")}</span><span class="big">${big}</span><span class="dim" style="font-size:13.5px">${sub}</span></button>`;
+  return`<section style="margin-bottom:22px"><div class="row" style="justify-content:space-between"><h2>Situation now${infoBtn("situation")}</h2><button class="btn ghost" data-act="copy-hourly">Copy hourly sitrep</button></div>
+  <div class="grid g4" style="margin-top:12px">
+   ${tile("ps-live","Weather",wd?(wd.alerts.length?`<span class="critical">${wd.alerts.length} alert${wd.alerts.length>1?"s":""}</span>`:esc(wd.current?.temperature||"No alerts")):"n/a",wd?esc(wd.alerts[0]?.title||wd.current?.title||""):"Waiting for first run","weather")}
+   ${tile("ps-live","Border near Ottawa",mx?waitTxt(mx.travellers):"n/a",mx?"Longest local wait: "+esc(mx.name):"No local data","border")}
+   ${tile("ps-live","Road incidents",td?td.counts.incidents:"n/a",td?`${td.counts.highPriority} high priority · ${td.counts.construction} construction`:"No data","traffic")}
+   ${tile("soc-feed","Cyber threats",kd?`${kd.added7} <small class="dim" style="font-size:14px">new KEV this week</small>`:"n/a",cd?.items?.[0]?esc(cd.items[0].title.slice(0,70)):"No advisories","kev")}
+  </div></section>`;
+}
+function hourlySitrep(){
+  const t=new Date().toLocaleString("en-CA",{timeZone:"America/Toronto",dateStyle:"medium",timeStyle:"short",hourCycle:"h23"});
+  const wd=L("weather")?.data,bd=L("border")?.data,td=L("traffic")?.data,kd=L("kev")?.data,cd=L("cyber")?.data;
+  const L2=[`Ottawa situation report, ${t} ET. Live feeds last checked ${ago(LIVE?.generatedAt)}.`];
+  if(wd)L2.push(`Weather: ${wd.alerts.length?wd.alerts.map(a=>a.title).join("; "):"no watches or warnings"}. ${wd.current?`Now ${wd.current.title}.`:""}`);
+  if(bd)L2.push(`Border near Ottawa: ${bd.crossings.filter(c=>c.local).map(c=>`${c.name} ${waitTxt(c.travellers)}`).join("; ")||"no data"}.`);
+  if(td)L2.push(`City roads: ${td.counts.incidents} active incidents, ${td.counts.highPriority} high priority, ${td.counts.construction} construction events.`);
+  if(kd)L2.push(`Cyber: ${kd.added7} vulnerabilities added to CISA's exploited list this week.${cd?.items?.[0]?" Latest Cyber Centre item: "+cd.items[0].title+".":""}`);
+  const y=O().Y2025;L2.push(`Context: Level Zero ${fmt(y.para.levelZero)} minutes in 2025; life threatening response ${y.para.ctas1}% within 8 minutes (target 75%). Fire incidents ${fmt(y.fire.incidents)} in 2025. Ottawa crime severity index ${y.statcan.ottawaCsi} (2025).`);
+  return L2.join("\n");
+}
+
+/* ============ ROLE VIEWS ============ */
+const ROLES={
+ em:{label:"Emergency manager",why:"Common operating picture first: current hazards, roads, border, then service capacity.",go:[["ps-live","Live conditions","Weather alerts, road incidents and border waits right now"],["ps-para","Paramedic capacity","Level Zero and offload delay decide surge capacity"],["ps-fire","Fire demand","Calls up 9% in 2025"],["ps-sources","Feed status","Check every source is fresh before you brief"]]},
+ board:{label:"Police board member",why:"Trends and accountability: year to date, the 2025 picture, and the caveats to cite.",go:[["ps-police","2026 year to date","Live CompStat style comparison"],["ps-police","Indicators","2025 preliminary against 2024","explore"],["ps-brief","Briefing","Three points and the situation report"],["ps-sources","Before you cite","Which numbers not to mix","cav"]]},
+ para:{label:"Paramedic or council committee",why:"Availability and its driver: Level Zero, offload delay, response targets.",go:[["ps-para","Paramedics","2025 targets and Level Zero"],["ps-fire","Fire medical calls","Tiered response changes"],["ps-live","Live conditions","Weather and road disruptions affecting response"]]},
+ ciso:{label:"SOC manager or CISO",why:"What changed today, what is open, and how fast the team closes it.",go:[["soc-feed","Threat feed","New exploited vulnerabilities and Canadian alerts"],["soc-queue","Triage queue","All open findings, worst first"],["soc-overview","SOC overview","Closure rate and time to resolve"],["soc-m11","Patch order","Vulnerability priorities"]]},
+ hire:{label:"Hiring panel",why:"How this analyst sources, caveats and briefs: start with the method, then the tools.",go:[["ps-sources","Sources and caveats","Every number traced to its publisher"],["ps-live","Live border panel","CBSA wait times, checked hourly"],["soc-m5","Threat intel enrichment","Pivoting on an indicator across 13 modules"],["ps-brief","Briefing","Oral brief and situation report"]]},
+};
+function rolePicker(){const r=P.role;const R=ROLES[r];
+ return`<section style="margin-bottom:22px"><h2>Start from your role${infoBtn("roles")}</h2><div class="roles">${Object.entries(ROLES).map(([k,v])=>`<button class="chip" data-role="${k}" aria-pressed="${r===k}">${v.label}</button>`).join("")}${r?`<button class="chip" data-role="">Clear</button>`:""}</div>
+ ${R?`<p class="dim" style="margin-bottom:10px">${esc(R.why)}</p><div class="grid g4">${R.go.map(([v,l,d,tab])=>`<button class="tile" data-go="${v}" ${tab?`data-gotab="${tab}"`:""}><b>${esc(l)}</b><span class="dim" style="font-size:14px">${esc(d)}</span></button>`).join("")}</div>`:`<p class="dim">Pick a role to get a short path through the console built for that job.</p>`}</section>`}
+
+/* ============ INFO PANELS ============ */
+const INFO={
+ home:["Console home","Two desks side by side: Ottawa public safety and a SOC cyber defence lab.","Published City of Ottawa, Ottawa Police and Statistics Canada reports, five live public feeds, and 13 finished SOC lab projects.","Live tiles hourly. Published figures when each report comes out.","Start at Situation now for the present, then pick a role or a desk. Each section has its own info button."],
+ situation:["Situation now","Four live tiles: weather alerts, the longest border wait near Ottawa, active City road incidents, and new exploited vulnerabilities this week.","Environment Canada, CBSA, City of Ottawa traffic, CISA and the Canadian Centre for Cyber Security.","Checked every hour by an automated job. The dot shows freshness: green under 90 minutes, amber under 6 hours, red older.","Click a tile for detail. Copy hourly sitrep gives a short text report you can paste into an email or briefing."],
+ roles:["Role views","Short paths through the console for five audiences.","Built from the research on what emergency managers, police boards, paramedic committees, CISOs and hiring panels look for.","Your choice is remembered in this browser.","Pick a role, then open the cards in order."],
+ "ps-live":["Live conditions","Current weather and alerts, waits at border crossings near Ottawa, and active City of Ottawa road incidents.","Environment Canada city feed, CBSA border wait times open data, City of Ottawa traffic events feed.","Checked hourly. CBSA updates at least hourly, the City feed continuously, weather alerts when issued.","Check the freshness tag on each panel before acting on a number. The sparkline shows the last 24 hourly checks for each crossing."],
+ "live-weather":["Weather and alerts","Active Environment Canada watches and warnings for Ottawa, current conditions and the next forecast periods.","Environment Canada Ottawa weather feed (weather.gc.ca).","Alerts as issued; conditions roughly hourly.","A red bordered box is an active alert. No alert shown means none in effect at the last check."],
+ "live-border":["Border crossings near Ottawa","Estimated wait to reach the CBSA primary inspection booth, entering Canada, at crossings within reach of Ottawa.","CBSA Current Border Wait Times open data.","CBSA updates at least hourly; this console checks hourly and keeps 7 days of history.","Travellers and commercial lanes are separate. 'No delay' means under about 5 minutes. The trend line builds up over the first day."],
+ "live-traffic":["City road incidents","Active incidents on City of Ottawa roads: collisions, emergency closures, unplanned work and hazards.","City of Ottawa traffic events open data feed.","Live; checked hourly here.","High priority means the City rates the impact as high. Construction and special events are counted separately."],
+ "ps-brief":["Briefing","The three points to lead with, a watchlist, six findings, and a ready situation report.","Ottawa Police, Fire, Paramedic and By-law reports.","When reports are published.","Use the three points for a short oral brief. The situation report tab gives copyable text."],
+ "ps-police":["Police","Ottawa Police indicators: 2025 preliminary against 2024, 2026 year to date, the crime mix, and context such as the Crime Severity Index and 9-1-1 answering.","OPS Community Safety Data Portal, OPS 2025 Annual Report, Statistics Canada, the 9-1-1 annual report.","2026 year to date checked hourly (OPS updates daily at 7:30 a.m.). The rest when reports come out.","Red means a rise in something that is better lower. Workload counts like calls are not scored. Click any indicator for its reading and citation."],
+ csi:["Crime Severity Index","Statistics Canada's index weighting each crime by its seriousness, with 2006 Canada set to 100.","Statistics Canada, Uniform Crime Reporting Survey, released July 22, 2026.","Once a year, each July.","Lower is less severe crime. Ottawa here means the Ontario part of the Ottawa–Gatineau metro area. OPS publishes its own index, which is a different series."],
+ e911:["9-1-1 call answering","How many 9-1-1 calls Ottawa received and how quickly they were answered.","Ottawa 9-1-1 2025 annual report to the Emergency Preparedness and Protective Services Committee.","Once a year.","The agreement target is 97% of calls answered within 6 seconds. Ottawa Police answers every call, then transfers fire and paramedic requests."],
+ "ps-fire":["Fire","Ottawa Fire Services demand: calls, incidents, false alarms and fire responses, 2022 to 2025.","Ottawa Fire Services annual reports (2025 report received May 2026).","Once a year.","Calls, incidents and apparatus responses are three different counts. Never add them together."],
+ "fire-trend":["Incident trend","Total incidents firefighters responded to each year.","OFS annual reports.","Yearly.","One incident can involve many calls and several trucks."],
+ "fire-mix":["Incident mix","What the incidents actually were, using 2024, the latest year with a public breakdown.","OFS 2024 annual report.","Yearly.","Shares can include tiered medical responses that paramedics also attend."],
+ "ps-para":["Paramedics","Ambulance availability (Level Zero), hospital offload delay, and response time targets.","Ottawa Paramedic Service annual reports (2025 report received June 2026), CBC and CTV coverage.","Once a year.","Level Zero is time with no ambulance free. Offload delay is time crews wait at hospitals and is the main driver of Level Zero."],
+ levelzero:["Level Zero","Total minutes in the year when no paramedic crew was available to respond.","Ottawa Paramedic Service annual reports.","Yearly.","Lower is better. The goal is zero."],
+ offload:["Hospital offload delay","Hours paramedics spent waiting at hospitals to hand patients over to emergency staff.","Ottawa Paramedic Service annual reports as reported by CBC and CTV.","Yearly.","The provincial standard is handover within 30 minutes, 9 times out of 10. Hours here are the yearly total across all crews."],
+ "para-targets":["Response targets","Share of calls where crews arrived within the time Council set for each priority level.","Ottawa Paramedic Service 2025 annual report.","Yearly.","CTAS 1 is life threatening. Red means the 2025 target was missed."],
+ "ps-bylaw":["By-law","By-law and Regulatory Services demand and enforcement.","2025 annual report to the Emergency Preparedness and Protective Services Committee, April 2026.","Once a year.","Requests are complaints and service calls; tickets are enforcement. They measure different things."],
+ "bylaw-mix":["Request mix","Share of by-law service requests by type.","2024 committee update; the 2025 split was not in the public coverage.","Yearly.","Parking dominates; noise has been trending down."],
+ "ps-place":["Place and context","How to move from city totals down to ward and neighbourhood views without misusing geomasked data.","OPS portal, Ottawa Neighbourhood Study, Statistics Canada.","Varies by source.","Use wards and neighbourhoods for patterns, never to point at an address."],
+ "ps-sources":["Sources and caveats","Every source behind the numbers, live feed status, and the rules for citing correctly.","Publisher pages linked on each card.","Live feed status updates hourly.","Check Before you cite before using a figure in a paper or briefing."],
+ "soc-overview":["SOC overview","The 13 module SOC lab built around one intrusion, with your triage performance and the merged incident timeline.","Finished content from 13 SOC and Blue Team lab projects.","Static lab content; your triage states save in this browser.","Closure rate and times come from when you open, acknowledge and resolve findings."],
+ "triage-metrics":["Triage performance","How quickly you work findings in this console.","Timestamps recorded in this browser when you first open a finding and change its state.","Updates as you work.","Real SOCs track mean time to detect and respond; this is the analyst-side equivalent for the lab."],
+ "soc-feed":["Threat feed","New Canadian cyber alerts and the latest vulnerabilities CISA confirms are exploited in the wild.","Canadian Centre for Cyber Security RSS, CISA Known Exploited Vulnerabilities catalog.","Checked hourly.","'In lab' means the vendor or product appears in the lab's findings, so it is a patch-first candidate."],
+ "live-cccs":["Cyber Centre alerts","Alerts (AL) and advisories (AV) from Canada's national cyber authority.","cyber.gc.ca alerts and advisories feed.","Several items a day; checked hourly.","Alerts are urgent threats or active campaigns; advisories are vendor patches and guidance."],
+ "live-kev":["Known exploited vulnerabilities","The newest entries in CISA's catalog of vulnerabilities confirmed as exploited.","CISA KEV JSON feed.","Whenever CISA updates; checked hourly.","The due date is the US federal deadline, a useful urgency signal. Ransomware use marks the highest risk."],
+ "soc-queue":["Triage queue","All 107 lab findings in one list, worst first.","The 13 SOC lab modules.","Static content; states save in this browser.","Filter, open a finding, read the evidence, then set acknowledged or resolved."],
+ module:["Lab module","One of 13 SOC and Blue Team projects: its findings, its working tool, the write-up, a report and the checklist.","Finished lab content from the project.","Static lab content.","Findings tab first, then try the tool. Codes like HUNT-05 in the text open that finding."],
+};
+function infoBtn(key){return INFO[key]?`<button class="ibtn" data-info="${key}" aria-label="What am I looking at?" aria-expanded="false">i</button>`:""}
+function openInfo(key,btn){const x=INFO[key];if(!x)return;const pop=$("#pop");
+ let title=x[0];if(key==="module"){const n=+S.view.slice(5);title=`Module ${n}: ${MOD[n]?.title||""}`}
+ pop.innerHTML=`<button class="x" data-act="info-close" aria-label="Close">×</button><h4 id="poph">${esc(title)}</h4><dl><dt>What you're looking at</dt><dd>${esc(x[1])}</dd><dt>Where it comes from</dt><dd>${esc(x[2])}</dd><dt>How often it updates</dt><dd>${esc(x[3])}</dd><dt>How to read it</dt><dd>${esc(x[4])}</dd></dl>`;
+ pop.classList.add("on");document.querySelectorAll(".ibtn[aria-expanded=true]").forEach(b=>b.setAttribute("aria-expanded","false"));btn.setAttribute("aria-expanded","true");S.infoBtn=btn;placeInfo();pop.querySelector(".x").focus({preventScroll:true})}
+function placeInfo(){const pop=$("#pop"),btn=S.infoBtn;if(!btn||!btn.isConnected){closeInfo();return}const r=btn.getBoundingClientRect();if(r.bottom<0||r.top>innerHeight){closeInfo();return}const pw=pop.offsetWidth,ph=pop.offsetHeight;const left=Math.min(Math.max(12,r.left-20),innerWidth-pw-12);let top=r.bottom+8;if(top+ph>innerHeight-12)top=Math.max(12,r.top-ph-8);pop.style.left=left+"px";pop.style.top=top+"px"}
+function closeInfo(){const pop=$("#pop");if(!pop.classList.contains("on"))return;pop.classList.remove("on");if(S.infoBtn){S.infoBtn.setAttribute("aria-expanded","false");if(S.infoBtn.isConnected&&pop.contains(document.activeElement))S.infoBtn.focus({preventScroll:true});S.infoBtn=null}}
+
+/* ============ GLOBAL SEARCH (debounced) ============ */
+let sT,sel=-1,res=[];
+function closeSearch(){$("#results").classList.remove("on");sel=-1}
+function doSearch(){const q=$("#q").value.trim().toLowerCase();const box=$("#results");if(q.length<2){closeSearch();return}
+ const o=O();const groups=[];
+ const views=[["home","Home"],...PSV,["soc-overview","SOC overview"],["soc-queue","Triage queue"],...D.soc.map(m=>["soc-m"+m.num,m.title])].filter(([,l])=>l.toLowerCase().includes(q)).slice(0,5).map(([v,l])=>({go:v,t:l,s:"Section"}));
+ const inds=o.INDICATORS.filter(x=>(x.name+" "+x.note).toLowerCase().includes(q)).slice(0,5).map(x=>({ind:x.id,t:x.name,s:`Police indicator · ${fmt(x.cy)} in 2025`}));
+ const srcs=o.SOURCES.filter(x=>(x.title+" "+x.kw).toLowerCase().includes(q)).slice(0,3).map(x=>({go:"ps-sources",t:x.title,s:"Source library"}));
+ const its=ITEMS.filter(i=>(i.code+" "+i.title+" "+i.tech+" "+i.tactic+" "+i.src+" "+i.logic+" "+i.ev).toLowerCase().includes(q)).sort((a,b)=>SW[b.sev]-SW[a.sev]).slice(0,8).map(i=>({open:i.k,t:`${i.code} · ${i.title}`,s:`${MODSHORT[i.num]} · ${i.tech} · ${i.sev}`}));
+ if(views.length)groups.push(["Sections",views]);if(inds.length)groups.push(["Public safety",inds]);if(srcs.length)groups.push(["Sources",srcs]);if(its.length)groups.push(["SOC findings",its]);
+ res=groups.flatMap(g=>g[1]);let ix=0;
+ box.innerHTML=groups.length?groups.map(([h,l])=>`<h4>${h}</h4>${l.map(r=>`<button role="option" data-ri="${ix++}"><b>${esc(r.t)}</b><span class="sub">${esc(r.s)}</span></button>`).join("")}`).join(""):`<p class="dim" style="padding:12px 14px">Nothing matches. Try an IP (203.0.113.87), a technique (T1490), or a word like overdose.</p>`;
+ box.classList.add("on");sel=-1}
+function pickResult(r){if(!r)return;$("#q").value="";closeSearch();if(r.open){openItem(r.open)}else if(r.ind){S.sel.ind=r.ind;go("ps-police",{tab:"explore"})}else go(r.go)}
+
+/* ============ EVENTS ============ */
+function afterRender(){
+ const srcq=$("#srcq");if(srcq)srcq.addEventListener("input",e=>{S.sel.srcQ=e.target.value;clearTimeout(sT);sT=setTimeout(()=>{render();const n=$("#srcq");n.focus();n.setSelectionRange(n.value.length,n.value.length)},250)});
+ const qtx=$("#qtx");if(qtx)qtx.addEventListener("input",e=>{S.qfilter.text=e.target.value;S.qfilter.n=25;clearTimeout(sT);sT=setTimeout(()=>{render();const n=$("#qtx");n.focus();n.setSelectionRange(n.value.length,n.value.length)},250)});
+ const qmod=$("#qmod");if(qmod)qmod.addEventListener("change",e=>{S.qfilter.mod=e.target.value;S.qfilter.n=25;render()});
+ const ds=$("#dsamp");if(ds)ds.addEventListener("change",e=>{const v=e.target.value;$("#dtext").value=v==="benign"?"2026-11-21T09:02:11Z WIN-LAB01 EventID=4624 Logon Type: 2 Account Name: jsmith\n2026-11-21T09:05:40Z WIN-LAB01 Sysmon EventID=1 Image: C:\\Program Files\\Microsoft Office\\EXCEL.EXE\nSource port 4720 to 443, PID 4698":v===""?"":MOD[1].items[+v].ev});
+ const ys=$("#ysamp");if(ys)ys.addEventListener("change",e=>{const v=e.target.value;if(v==="note"){$("#yfn").value="README_RESTORE.txt";$("#ytx").value="YOUR FILES HAVE BEEN ENCRYPTED\nAll your documents, photos and databases are locked.\nTo restore your files you must pay in Bitcoin. Contact us via our TOR site.\nDo not rename encrypted files. Do not try to decrypt with third party software.\nYour personal ID: 7F3A-91C2"}else if(v==="benign"){$("#yfn").value="meeting-notes.txt";$("#ytx").value="Team sync notes. Restore the staging database from Friday's backup and review the encryption settings for the new laptops."}else if(v!==""){const i=MOD[3].items[+v];$("#yfn").value=(i.ev.match(/[\w-]+\.(?:txt|hta|html|lockbit|locked|encrypted|exe|dll|ps1|bat)\b/i)||["sample.bin"])[0];$("#ytx").value=i.ev}});
+ const lq=$("#lq");if(lq)lq.addEventListener("keydown",e=>{if(e.key==="Enter")runLogs()});
+ const eq=$("#eq");if(eq){eq.addEventListener("keydown",e=>{if(e.key==="Enter")runEnrich()});if(S.sel.eqAuto){S.sel.eqAuto=false;runEnrich(S.sel.eq)}}
+}
+document.addEventListener("click",e=>{
+ const t=e.target.closest("[data-info],[data-role],[data-tpri],[data-go],[data-act],[data-tab],[data-open],[data-ind],[data-srcg],[data-qst],[data-qsev],[data-msev],[data-setst],[data-dtab],[data-enrich],[data-lqs],[data-hunt],[data-sbx],[data-vmove],[data-phs],[data-ri]");if(!t)return;const d=t.dataset;
+ if(d.info){e.stopPropagation();if(S.infoBtn===t){closeInfo();return}openInfo(d.info,t);return}
+ if(d.role!=null){P.role=d.role||null;save();render();return}
+ if(d.tpri){S.sel.tpri=d.tpri;render();return}
+ if(d.ri!=null){pickResult(res[+d.ri]);return}
+ if(d.go){if(S.drawer)closeDrawer();closeInfo();go(d.go,d.gotab?{tab:d.gotab}:{});return}
+ if(d.tab){S.tab[S.view]=d.tab;render();return}
+ if(d.open){S.dtab="ev";openItem(d.open);return}
+ if(d.dtab){S.dtab=d.dtab;openItem(S.drawer);return}
+ if(d.setst){setStatus(S.drawer,d.setst);openItem(S.drawer);rerenderLight();return}
+ if(d.ind){S.sel.ind=d.ind;render();return}
+ if(d.srcg){S.sel.srcGroup=d.srcg;render();return}
+ if(d.qst){S.qfilter.status=d.qst;S.qfilter.n=25;render();return}
+ if(d.qsev){S.qfilter.sev=d.qsev;S.qfilter.n=25;render();return}
+ if(d.msev){S.sel["msev"+S.view.slice(5)]=d.msev;render();return}
+ if(d.enrich){if(S.drawer)closeDrawer();S.sel.eq=d.enrich;S.sel.eqAuto=true;if(S.view==="soc-m5"&&(S.tab["soc-m5"]==="tool")){$("#eq").value=d.enrich;runEnrich(d.enrich);S.sel.eqAuto=false}else go("soc-m5",{tab:"tool"});return}
+ if(d.lqs){$("#lq").value=d.lqs;runLogs();return}
+ if(d.hunt){S.sel.hunt=+d.hunt;render();return}
+ if(d.sbx){S.sel.sbx=+d.sbx;render();return}
+ if(d.vmove){const[ix,dir]=d.vmove.split(":").map(Number);const o=[...vulnOrder()];const j=ix+dir;if(j<0||j>=o.length)return;[o[ix],o[j]]=[o[j],o[ix]];P.vulnOrder=o;save();render();return}
+ if(d.phs){const p=PHS[+d.phs];$("#pf").value=p.from;$("#ps").value=p.subject;$("#ph").value=p.headers;$("#pb").value=p.body;return}
+ const a=d.act;
+ if(a==="close"){closeDrawer();return}
+ if(a==="info-close"){closeInfo();return}
+ if(a==="copy-hourly"){copy(hourlySitrep(),"Hourly sitrep copied");return}
+ if(a==="copy-sitrep")copy(O().SITREP,"Situation report copied");
+ else if(a==="cite")copy(ind(d.id).citation,"Citation copied");
+ else if(a==="copy-report")copy(reportText(MOD[+d.num]),"Report copied");
+ else if(a==="more"){S.qfilter.n+=25;render();window.scrollTo({top:document.body.scrollHeight})}
+ else if(a==="clear-act"){P.activity=[];save();render()}
+ else if(a==="vreset"){P.vulnOrder=null;save();render()}
+ else if(a==="run-det")runDet();else if(a==="run-logs")runLogs();else if(a==="run-yara")runYara();else if(a==="run-hunt")runHunt();else if(a==="run-enrich")runEnrich();else if(a==="run-phish")runPhish();
+});
+document.addEventListener("change",e=>{const k=e.target.dataset?.fix;if(k){setStatus(k,e.target.checked?"resolved":"open");render()}});
+document.addEventListener("keydown",e=>{const tr=e.target.closest?.("tr.pick");if(tr&&(e.key==="Enter"||e.key===" ")){e.preventDefault();S.sel.ind=tr.dataset.ind;render();const n=document.querySelector(`tr[data-ind="${tr.dataset.ind}"]`);n&&n.focus();return}
+ if(e.key==="Escape"){if($("#pop").classList.contains("on")){closeInfo();return}if(S.drawer){closeDrawer();return}closeSearch();return}
+ const typing=/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)||e.target.isContentEditable;
+ if(e.target.id==="q"&&$("#results").classList.contains("on")){const bs=[...document.querySelectorAll("#results [data-ri]")];if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();sel=Math.max(0,Math.min(bs.length-1,sel+(e.key==="ArrowDown"?1:-1)));bs.forEach((b,i)=>b.classList.toggle("sel",i===sel));bs[sel]?.scrollIntoView({block:"nearest"})}else if(e.key==="Enter"){e.preventDefault();pickResult(res[sel<0?0:sel])}return}
+ if(typing||e.metaKey||e.ctrlKey||e.altKey)return; /* fixed: shortcuts no longer hijack Ctrl/Cmd combos */
+ if(e.key==="/"){e.preventDefault();$("#q").focus()}});
+$("#q").addEventListener("input",()=>{clearTimeout(sT);sT=setTimeout(doSearch,150)});
+$("#q").addEventListener("focus",()=>{if($("#q").value.trim().length>=2)doSearch()});
+document.addEventListener("click",e=>{if(!e.target.closest(".search"))closeSearch();if(!e.target.closest("#pop")&&!e.target.closest("[data-info]"))closeInfo()},true);
+window.addEventListener("resize",()=>closeInfo());window.addEventListener("scroll",()=>{if(S.infoBtn)placeInfo()},{passive:true});
+function rerenderLight(){renderRail();const v=S.view;const tab=S.tab[v]||"findings";if(v==="home"||v==="soc-overview"||v==="soc-queue"||(/^soc-m/.test(v)&&tab!=="tool")||(/^soc-m(8|9|10|12)$/.test(v))){const y=window.scrollY;render();window.scrollTo({top:y})}}
+
+/* ============ BOOT ============ */
+function init(data){D=data;D.soc.forEach(m=>{MOD[m.num]=m;m.items.forEach((i,ix)=>{i.k=m.num+":"+ix;i.num=m.num;ITEMS.push(i);BYCODE[i.code]=i})});
+ CODE_RE=new RegExp(`\\b(?:${[...new Set(ITEMS.map(i=>i.code.split("-")[0]))].join("|")})-\\d{2}\\b`,"g");
+ LABTEXT=" "+ITEMS.map(i=>(i.title+" "+i.logic+" "+i.ev+" "+i.src).toLowerCase().replace(/[^a-z0-9]+/g," ")).join(" ")+" ";
+ tick();setInterval(tick,1000);const v=location.hash.slice(1);S.view=validView(v)?v:"home";render()}
+(async()=>{let data=window.DATA;if(!data){try{const r=await fetch("data.json",{cache:"no-cache"});data=await r.json()}catch(err){$("#main").innerHTML=`<div class="card"><h2>The data file did not load</h2><p class="dim" style="margin-top:6px">Keep data.json next to this page, or use the standalone version with the data built in.</p></div>`;return}}await loadLive();init(data);setInterval(async()=>{await loadLive();const v=S.view;if(!S.drawer&&!$("#pop").classList.contains("on")&&(v==="home"||v==="ps-live"||v==="soc-feed"||(v==="ps-police"&&S.tab[v]==="ytd")||(v==="ps-sources"&&S.tab[v]==="live"))){const y=scrollY;render();scrollTo({top:y})}},600000)})();
+}
+</script>
+</body>
+</html>
