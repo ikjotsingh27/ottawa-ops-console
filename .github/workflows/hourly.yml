@@ -36,6 +36,8 @@ jobs:
 
       - name: Fetch live sources
         run: node scripts/fetch-live.mjs
+        env:
+          DEBUG_FEEDS: "1"
 
       - name: Save live data to the repo
         run: |

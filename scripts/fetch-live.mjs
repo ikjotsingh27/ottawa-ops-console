@@ -158,6 +158,7 @@ async function fetchOps() {
   const meta = await get(base + "?f=json", "json");
   if (meta.error) throw new Error(`ArcGIS: ${meta.error.message || meta.error.code}`);
   const fields = meta.fields || [];
+  if (process.env.DEBUG_FEEDS) console.log("OPS_FIELDS>>" + JSON.stringify(fields.map((f) => [f.name, f.alias, f.type])));
   const date = fields.find((f) => f.type === "esriFieldTypeDate" && /rep|report/i.test(f.name)) || fields.find((f) => f.type === "esriFieldTypeDate" && /occ|date/i.test(f.name)) || fields.find((f) => f.type === "esriFieldTypeDate");
   const cat = fields.find((f) => f.type === "esriFieldTypeString" && /csi|offen[cs]e_?cat|category|crime_?type|offence|offense/i.test(f.name + " " + (f.alias || "")));
   if (!date || !cat) throw new Error("Fields not recognised: " + fields.map((f) => f.name).join(", ").slice(0, 400));
@@ -179,7 +180,7 @@ async function fetchOps() {
 
 const JOBS = {
   weather: async () => parseWeather(await get(SOURCES.weather.url)),
-  border: async () => parseBorder(await get(SOURCES.border.url)),
+  border: async () => { const t = await get(SOURCES.border.url); if (process.env.DEBUG_FEEDS) console.log("BORDER_RAW>>" + JSON.stringify(t.slice(0, 700))); return parseBorder(t); },
   traffic: async () => parseTraffic(await get(SOURCES.traffic.url, "json")),
   cyber: async () => parseFeed(await get(SOURCES.cyber.url)),
   kev: async () => parseKev(await get(SOURCES.kev.url, "json")),
