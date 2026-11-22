@@ -189,10 +189,11 @@ async function fetchOps() {
     return rows;
   };
   const rows = await compare(cat.name, 15);
-  const flag = (rs) => { const yes = rs.filter((r) => /^(y|yes|true|1)$/i.test(r.category)); return yes.length ? { ytd: yes.reduce((s, r) => s + r.ytd, 0), prior: yes.reduce((s, r) => s + r.prior, 0) } : null; };
+  const flag = (rs) => { const yes = rs.filter((r) => !/^(n|no|false|0|unknown|null|none|-|)$/i.test(r.category.trim())); return yes.length ? { ytd: yes.reduce((s, r) => s + r.ytd, 0), prior: yes.reduce((s, r) => s + r.prior, 0) } : null; };
   const safe = async (f, top) => { try { return f ? await compare(f.name, top) : null; } catch { return null; } };
   const [districts, shootRows, hateRows] = await Promise.all([safe(extra.district, 12), safe(extra.shooting), safe(extra.hate)]);
-  return { asOf: ymd(y), year: y, dateField: date.name, categoryField: cat.name, rows, districts, shootings: shootRows && flag(shootRows), hateCrimes: hateRows && flag(hateRows), totalYtd: rows.reduce((s, r) => s + r.ytd, 0), totalPrior: rows.reduce((s, r) => s + r.prior, 0) };
+  const flagValues = { shooting: shootRows?.map((r) => r.category), hate: hateRows?.map((r) => r.category) };
+  return { flagValues, asOf: ymd(y), year: y, dateField: date.name, categoryField: cat.name, rows, districts, shootings: shootRows && flag(shootRows), hateCrimes: hateRows && flag(hateRows), totalYtd: rows.reduce((s, r) => s + r.ytd, 0), totalPrior: rows.reduce((s, r) => s + r.prior, 0) };
 }
 
 const JOBS = {
