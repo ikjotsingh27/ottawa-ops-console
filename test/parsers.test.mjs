@@ -32,6 +32,18 @@ test("border: tolerant columns and minute parsing", () => {
   assert.equal(b.crossings[2].local, false);
   assert.equal(minutes("No Delay"), 0);
 });
+test("border: real CBSA ';;' format", () => {
+  const raw = "Customs Office;; Location;; Last updated;; Commercial Flow - Canada bound;; Commercial Flow - U.S. bound;; Travellers Flow - Canada bound;; Travellers Flow - U.S. bound;;\nPrescott;; Prescott, ON/Ogdensburg, NY;; 2026-11-21 20:50 EST;; Not Applicable;; --;; 10 minutes;; --;; \nAmbassador Bridge;; Windsor, ON/Detroit, MI;; 2026-11-21 20:15 EST;; No Delay;; 5 minutes;; 1 hour 5 minutes;; --;; \n";
+  const b = parseBorder(raw);
+  assert.equal(b.crossings.length, 2);
+  assert.equal(b.crossings[0].name, "Prescott");
+  assert.equal(b.crossings[0].travellers, 10);
+  assert.equal(b.crossings[0].commercial, null);
+  assert.equal(b.crossings[0].local, true);
+  assert.equal(b.crossings[1].travellers, 65);
+  assert.equal(b.crossings[1].commercialUS, 5);
+  assert.equal(b.crossings[1].local, false);
+});
 test("traffic: active incidents ranked by priority", () => {
   const t = parseTraffic([
     { Id: 1, EventType: "INCIDENT", status: "ACTVE", headline: "Collision", priority: "LOW", mainStreet: "Bank St", Updated: "2026-11-21 16:00" },

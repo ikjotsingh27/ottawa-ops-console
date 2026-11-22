@@ -90,18 +90,27 @@ export const minutes = (v = "") => {
   if (!h && !mm) { const n = s.match(/\d+/); if (n) m = +n[0]; else return null; }
   return m;
 };
-const LOCAL = /cornwall|prescott|lansdowne|thousand islands|lacolle|stanstead|armand|ogdensburg/i;
+const LOCAL = /cornwall|prescott|lansdowne|thousand islands|lacolle|armand|ogdensburg|massena|alexandria bay/i;
 export function parseBorder(csv) {
-  const rows = parseCSV(csv.replace(/^﻿/, ""));
-  if (rows.length < 2) throw new Error("Border CSV is empty");
+  const text = csv.replace(/^﻿/, "");
+  const first = text.split(/\r?\n/)[0] || "";
+  const rows = first.includes(";;")
+    ? text.split(/\r?\n/).filter((l) => l.trim()).map((l) => l.split(";;").map((x) => x.trim())).map((r) => (r[r.length - 1] === "" ? r.slice(0, -1) : r))
+    : parseCSV(text);
+  if (rows.length < 2) throw new Error("Border file is empty");
   const h = rows[0].map((x) => x.trim().toLowerCase());
-  const col = (re) => h.findIndex((x) => re.test(x));
-  const iName = col(/office|crossing|name|port/), iCom = col(/commercial/), iTrav = col(/travel/), iUpd = col(/updated|date|time/), iLoc = col(/location|province|region/);
-  if (iName < 0 || iTrav < 0) throw new Error("Border CSV columns not recognised: " + rows[0].join(" | "));
+  const col = (re, not) => h.findIndex((x) => re.test(x) && !(not && not.test(x)));
+  const iName = col(/office|crossing|name|port/), iLoc = col(/location|province|region/), iUpd = col(/updated|date|time/);
+  const iCom = col(/commercial.*canada/) >= 0 ? col(/commercial.*canada/) : col(/commercial/, /u\.?s\.? bound/);
+  const iTrav = col(/travel.*canada/) >= 0 ? col(/travel.*canada/) : col(/travel/, /u\.?s\.? bound/);
+  const iComUS = col(/commercial.*u\.?s\.? bound/), iTravUS = col(/travel.*u\.?s\.? bound/);
+  if (iName < 0 || iTrav < 0 || new Set([iName, iTrav]).size < 2) throw new Error("Border columns not recognised: " + rows[0].join(" | "));
+  const cell = (r, i) => (i >= 0 ? (r[i] || "").trim() : "");
+  const val = (r, i) => { const t = cell(r, i); return !t || t === "--" ? null : minutes(t); };
   const list = rows.slice(1).map((r) => ({
-    name: (r[iName] || "").trim(), location: iLoc >= 0 ? (r[iLoc] || "").trim() : "",
-    commercialText: iCom >= 0 ? (r[iCom] || "").trim() : "", travellersText: (r[iTrav] || "").trim(),
-    commercial: iCom >= 0 ? minutes(r[iCom]) : null, travellers: minutes(r[iTrav]), updated: iUpd >= 0 ? (r[iUpd] || "").trim() : "",
+    name: cell(r, iName), location: cell(r, iLoc), updated: cell(r, iUpd),
+    commercialText: cell(r, iCom), travellersText: cell(r, iTrav),
+    commercial: val(r, iCom), travellers: val(r, iTrav), commercialUS: val(r, iComUS), travellersUS: val(r, iTravUS),
   })).filter((x) => x.name);
   list.forEach((x) => (x.local = LOCAL.test(x.name + " " + x.location)));
   return { crossings: list };
@@ -158,29 +167,37 @@ async function fetchOps() {
   const meta = await get(base + "?f=json", "json");
   if (meta.error) throw new Error(`ArcGIS: ${meta.error.message || meta.error.code}`);
   const fields = meta.fields || [];
-  if (process.env.DEBUG_FEEDS) console.log("OPS_FIELDS>>" + JSON.stringify(fields.map((f) => [f.name, f.alias, f.type])));
   const date = fields.find((f) => f.type === "esriFieldTypeDate" && /rep|report/i.test(f.name)) || fields.find((f) => f.type === "esriFieldTypeDate" && /occ|date/i.test(f.name)) || fields.find((f) => f.type === "esriFieldTypeDate");
-  const cat = fields.find((f) => f.type === "esriFieldTypeString" && /csi|offen[cs]e_?cat|category|crime_?type|offence|offense/i.test(f.name + " " + (f.alias || "")));
+  const byName = (n) => fields.find((f) => f.name.toLowerCase() === n);
+  const cat = byName("occ_type") || byName("case_type_pubtrans") || fields.find((f) => f.type === "esriFieldTypeString" && /offen[cs]e|crime_?type|occurrence type/i.test(f.name + " " + (f.alias || "")));
+  const extra = { district: byName("district"), shooting: byName("shooting"), hate: byName("hate_crime") };
   if (!date || !cat) throw new Error("Fields not recognised: " + fields.map((f) => f.name).join(", ").slice(0, 400));
   const tz = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
   const [y, m, d] = tz.split("-").map(Number);
   const ymd = (yy) => `${yy}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
   const stat = encodeURIComponent(JSON.stringify([{ statisticType: "count", onStatisticField: meta.objectIdField || "OBJECTID", outStatisticFieldName: "n" }]));
-  async function counts(yy) {
+  async function counts(yy, field) {
     const where = encodeURIComponent(`${date.name} >= DATE '${yy}-01-01' AND ${date.name} < DATE '${ymd(yy)}'`);
-    const r = await get(`${base}/query?where=${where}&outStatistics=${stat}&groupByFieldsForStatistics=${cat.name}&f=json`, "json");
+    const r = await get(`${base}/query?where=${where}&outStatistics=${stat}&groupByFieldsForStatistics=${field}&f=json`, "json");
     if (r.error) throw new Error(`ArcGIS query: ${r.error.message || r.error.code}`);
-    const out = {}; for (const f of r.features || []) out[f.attributes[cat.name] ?? "Unknown"] = f.attributes.n ?? f.attributes.N; return out;
+    const out = {}; for (const f of r.features || []) { const k = String(f.attributes[field] ?? "Unknown").trim() || "Unknown"; out[k] = (out[k] || 0) + (f.attributes.n ?? f.attributes.N ?? 0); } return out;
   }
-  const [cur, prev] = await Promise.all([counts(y), counts(y - 1)]);
-  const keys = [...new Set([...Object.keys(cur), ...Object.keys(prev)])];
-  const rows = keys.map((k) => ({ category: k, ytd: cur[k] || 0, prior: prev[k] || 0 })).sort((a, b) => b.ytd - a.ytd);
-  return { asOf: ymd(y), year: y, dateField: date.name, categoryField: cat.name, rows, totalYtd: rows.reduce((s, r) => s + r.ytd, 0), totalPrior: rows.reduce((s, r) => s + r.prior, 0) };
+  const compare = async (field, top) => {
+    const [cur, prev] = await Promise.all([counts(y, field), counts(y - 1, field)]);
+    let rows = [...new Set([...Object.keys(cur), ...Object.keys(prev)])].map((k) => ({ category: k, ytd: cur[k] || 0, prior: prev[k] || 0 })).sort((a, b) => b.ytd - a.ytd);
+    if (top && rows.length > top) { const rest = rows.slice(top); rows = rows.slice(0, top).concat([{ category: `All other (${rest.length} types)`, ytd: rest.reduce((s, r) => s + r.ytd, 0), prior: rest.reduce((s, r) => s + r.prior, 0) }]); }
+    return rows;
+  };
+  const rows = await compare(cat.name, 15);
+  const flag = (rs) => { const yes = rs.filter((r) => /^(y|yes|true|1)$/i.test(r.category)); return yes.length ? { ytd: yes.reduce((s, r) => s + r.ytd, 0), prior: yes.reduce((s, r) => s + r.prior, 0) } : null; };
+  const safe = async (f, top) => { try { return f ? await compare(f.name, top) : null; } catch { return null; } };
+  const [districts, shootRows, hateRows] = await Promise.all([safe(extra.district, 12), safe(extra.shooting), safe(extra.hate)]);
+  return { asOf: ymd(y), year: y, dateField: date.name, categoryField: cat.name, rows, districts, shootings: shootRows && flag(shootRows), hateCrimes: hateRows && flag(hateRows), totalYtd: rows.reduce((s, r) => s + r.ytd, 0), totalPrior: rows.reduce((s, r) => s + r.prior, 0) };
 }
 
 const JOBS = {
   weather: async () => parseWeather(await get(SOURCES.weather.url)),
-  border: async () => { const t = await get(SOURCES.border.url); if (process.env.DEBUG_FEEDS) console.log("BORDER_RAW>>" + JSON.stringify(t.slice(0, 700))); return parseBorder(t); },
+  border: async () => parseBorder(await get(SOURCES.border.url)),
   traffic: async () => parseTraffic(await get(SOURCES.traffic.url, "json")),
   cyber: async () => parseFeed(await get(SOURCES.cyber.url)),
   kev: async () => parseKev(await get(SOURCES.kev.url, "json")),
