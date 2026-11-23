@@ -69,3 +69,47 @@ test("kev: counts and latest", () => {
   ] }, new Date("2026-11-21T12:00:00Z"));
   assert.equal(k.total, 2); assert.equal(k.added7, 1); assert.equal(k.latest[0].cve, "CVE-1");
 });
+
+import { downFeeds, healthMarkdown } from "../scripts/health.mjs";
+import { shouldSkip } from "../scripts/guard.mjs";
+
+const H = 36e5;
+test("health: feed down 6 hours or more is reported, shorter outages are not", () => {
+  const now = Date.parse("2026-11-23T12:00:00Z");
+  const live = { sources: {
+    weather: { name: "Weather", ok: true },
+    border: { name: "Border", ok: false, failingSince: "2026-11-23T05:00:00Z", error: "HTTP 503", page: "https://example.test/b" },
+    traffic: { name: "Traffic", ok: false, failingSince: "2026-11-23T09:00:00Z", error: "timeout" },
+  } };
+  const d = downFeeds(live, now, 6);
+  assert.deepEqual(d.map((x) => x.id), ["border"]);
+  assert.equal(Math.round(d[0].hours), 7);
+  assert.match(healthMarkdown(d), /Border/);
+  assert.match(healthMarkdown(d), /HTTP 503/);
+});
+test("health: nothing down gives an empty list", () => {
+  assert.deepEqual(downFeeds({ sources: { a: { ok: true } } }, Date.now(), 6), []);
+  assert.deepEqual(downFeeds({}, Date.now(), 6), []);
+});
+test("guard: scheduled run skips when data is under 90 minutes old, manual and push runs never skip", () => {
+  const now = Date.parse("2026-11-23T12:00:00Z");
+  const iso = (mins) => new Date(now - mins * 6e4).toISOString();
+  assert.equal(shouldSkip("schedule", iso(30), now, 90), true);
+  assert.equal(shouldSkip("schedule", iso(89), now, 90), true);
+  assert.equal(shouldSkip("schedule", iso(91), now, 90), false);
+  assert.equal(shouldSkip("schedule", undefined, now, 90), false);
+  assert.equal(shouldSkip("workflow_dispatch", iso(5), now, 90), false);
+  assert.equal(shouldSkip("push", iso(5), now, 90), false);
+});
+test("fetch: a failing feed records when it started failing and keeps it", async () => {
+  const { markFailure } = await import("../scripts/fetch-live.mjs");
+  const t0 = "2026-11-23T10:00:00Z", t1 = "2026-11-23T12:00:00Z";
+  const first = markFailure({ ok: true, fetchedAt: "2026-11-23T08:00:00Z", data: { x: 1 } }, "boom", t0);
+  assert.equal(first.ok, false);
+  assert.equal(first.failingSince, t0);
+  assert.deepEqual(first.data, { x: 1 });
+  const second = markFailure({ ...first }, "boom again", t1);
+  assert.equal(second.failingSince, t0);
+  assert.equal(second.checkedAt, t1);
+  assert.equal(second.fetchedAt, "2026-11-23T08:00:00Z");
+});

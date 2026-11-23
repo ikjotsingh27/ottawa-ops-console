@@ -1,4 +1,4 @@
-// Hourly live data job for the Unified Operations Console.
+// Live data job for the Unified Operations Console (runs every two hours).
 // Runs on GitHub Actions (Node 22, no dependencies). Each source is fetched on its own;
 // a failing source keeps its last good data and is marked stale instead of breaking the page.
 import { readFile, writeFile } from "node:fs/promises";
@@ -205,6 +205,10 @@ const JOBS = {
   ops: fetchOps,
 };
 
+export function markFailure(old, message, at) {
+  return { ok: false, checkedAt: at, fetchedAt: old?.fetchedAt || null, failingSince: old?.failingSince || at, error: String(message).slice(0, 500), data: old?.data || null };
+}
+
 async function readJSON(p, fallback) { try { return JSON.parse(await readFile(p, "utf8")); } catch { return fallback; } }
 
 export async function run() {
@@ -218,8 +222,7 @@ export async function run() {
       out.sources[id] = { ...meta, ok: true, fetchedAt: NOW, checkedAt: NOW, data };
       console.log(`ok   ${id}`);
     } catch (e) {
-      const old = prev.sources?.[id];
-      out.sources[id] = { ...meta, ok: false, checkedAt: NOW, fetchedAt: old?.fetchedAt || null, error: String(e.message || e).slice(0, 500), data: old?.data || null };
+      out.sources[id] = { ...meta, ...markFailure(prev.sources?.[id], e.message || e, NOW) };
       console.log(`FAIL ${id}: ${e.message || e}`);
     }
   }));

@@ -1,0 +1,111 @@
+name: Live data and deploy
+
+on:
+  schedule:
+    # Every two hours. Extra slots are backups: GitHub can delay or drop scheduled runs,
+    # and the guard step skips a backup when the data is already under 90 minutes old.
+    - cron: "17 */2 * * *"
+    - cron: "47 */2 * * *"
+    - cron: "17 1-23/2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths-ignore: ["site/live.json", "site/history.json"]
+
+concurrency:
+  group: live-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      issues: write
+    outputs:
+      skip: ${{ steps.guard.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Skip if data is already fresh
+        id: guard
+        run: node scripts/guard.mjs
+
+      - name: Test parsers
+        if: steps.guard.outputs.skip != 'true'
+        run: node --test test/parsers.test.mjs
+
+      - name: Fetch live sources
+        if: steps.guard.outputs.skip != 'true'
+        run: node scripts/fetch-live.mjs
+
+      - name: Save live data to the repo
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          git config user.name "ops-console-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/live.json site/history.json
+          if git diff --cached --quiet; then
+            echo "No data change"
+          else
+            git commit -m "Live data $(date -u +%Y-%m-%dT%H:%MZ)"
+            for i in 1 2 3; do
+              git pull --rebase origin main && git push origin HEAD:main && break
+              echo "push attempt $i failed, retrying"; sleep 5
+            done
+          fi
+
+      - name: Open or close the feed health issue
+        if: steps.guard.outputs.skip != 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node scripts/health.mjs
+          TITLE="Live feed down for 6 hours or more"
+          NUM=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number // empty')
+          if [ "$(cat health.count)" != "0" ]; then
+            if [ -n "$NUM" ]; then gh issue edit "$NUM" --body-file health.md
+            else gh issue create --title "$TITLE" --body-file health.md; fi
+          elif [ -n "$NUM" ]; then
+            gh issue close "$NUM" --comment "All feeds are updating again."
+          fi
+
+      - uses: actions/configure-pages@v6
+        if: steps.guard.outputs.skip != 'true'
+
+      - uses: actions/upload-pages-artifact@v5
+        if: steps.guard.outputs.skip != 'true'
+        with:
+          path: site
+
+  deploy:
+    needs: update
+    if: needs.update.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.second.outputs.page_url || steps.first.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: first
+        uses: actions/deploy-pages@v5
+        continue-on-error: true
+
+      - name: Wait before retry
+        if: steps.first.outcome == 'failure'
+        run: sleep 45
+
+      - name: Deploy to GitHub Pages (retry)
+        id: second
+        if: steps.first.outcome == 'failure'
+        uses: actions/deploy-pages@v5

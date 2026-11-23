@@ -1,5 +1,7 @@
 # Unified Operations Console
 
+![Home screen of the console](site/og.png)
+
 **Live site:** https://ikjotsingh27.github.io/ottawa-ops-console/
 
 One console with two desks:
@@ -11,16 +13,18 @@ Every section has an **info button** explaining what it shows, where the data co
 
 Built by Ikjot Singh as a portfolio project (Bachelor of Public Safety, Algonquin College).
 
-## How the hourly refresh works
+## How the two-hour refresh works
 
 A browser page cannot pull data from government sites directly, so a GitHub Actions job does it:
 
-1. Every hour at :17, `.github/workflows/hourly.yml` runs `scripts/fetch-live.mjs` (Node 22, no dependencies).
-2. The script fetches each feed on its own. A failing feed keeps its last good data and is marked stale, so one outage never breaks the page.
-3. Results are written to `site/live.json` and `site/history.json` (7 days of border wait history), committed, and the `site/` folder is deployed to GitHub Pages.
-4. The page reloads `live.json` every 10 minutes and shows how old each feed is.
+1. Every two hours, `.github/workflows/live-data.yml` runs `scripts/fetch-live.mjs` (Node 22, no dependencies). Two backup schedule slots exist because GitHub sometimes drops scheduled runs; a guard step skips a backup when the data is already under 90 minutes old.
+2. The script fetches each feed on its own. A failing feed keeps its last good data and is marked stale, so one outage never breaks the page. If a feed fails for 6 hours or more, the job opens a GitHub issue and closes it when the feed recovers.
+3. Results are written to `site/live.json` and `site/history.json` (7 days of border wait history) and committed. A second job deploys the `site/` folder to GitHub Pages and retries once if the first attempt fails.
+4. The page reloads `live.json` every 10 minutes and shows how old each feed is and when the next update is expected.
 
-You can also run it on demand: **Actions → Hourly live data and deploy → Run workflow**.
+A separate workflow opens a reminder issue every 1 April to refresh the yearly figures.
+
+You can also run it on demand: **Actions → Live data and deploy → Run workflow**.
 
 | Feed | Publisher | Publisher updates |
 |---|---|---|
@@ -45,7 +49,11 @@ cd site && python3 -m http.server   # open http://localhost:8000
 
 - Not a dispatch or SIEM feed. Police counts for the current year are preliminary and change as late reports arrive.
 - SOC content is lab material; triage states and timings are stored only in your browser.
-- GitHub may delay scheduled runs at busy times, and pauses schedules on repos with no activity for 60 days. The hourly data commits keep this repo active.
+- GitHub may delay scheduled runs at busy times, and pauses schedules on repos with no activity for 60 days. The data commits keep this repo active.
+
+## Licence
+
+Code is MIT licensed (see `LICENSE`). Data keeps the licences below.
 
 ## Data licences
 
