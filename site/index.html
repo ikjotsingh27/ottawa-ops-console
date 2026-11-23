@@ -161,7 +161,10 @@ i.ok{background:var(--good)!important}i.warn{background:var(--med)!important}i.b
 .tile{text-align:left;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:6px;min-height:132px}
 .tile:hover{border-color:var(--acc)}
 .tile .big{font:300 30px/1.05 "Inter Tight",Inter,system-ui,sans-serif}
-.spark{width:120px;height:28px;display:block}
+.spark{width:100%;max-width:120px;height:28px;display:block}
+.tw{overflow-x:auto;container-type:inline-size}
+@media(max-width:640px){.tag{white-space:normal;border-radius:14px}}
+@media(min-width:601px){@container (max-width:600px){.tw .sp{display:none}}}
 .roles{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 14px}
 .notice{border:1px dashed var(--line);border-radius:12px;padding:14px;color:var(--dim)}
 .foot{margin-top:40px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--faint)}
@@ -600,7 +603,7 @@ function vLive(){
     ${wd.forecast?.length?`<ul style="margin:12px 0 0;padding-left:18px;font-size:14px" class="dim">${wd.forecast.slice(0,3).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}`:`<p class="dim" style="margin-top:10px">No weather data yet.</p>`}
    </section>
    <section class="card"><div class="row" style="justify-content:space-between"><h3>Border crossings near Ottawa, entering Canada${infoBtn("live-border")}</h3>${freshTag("border")}</div>
-    ${local.length?`<table class="stack" style="margin-top:8px"><thead><tr><th>Crossing</th><th class="r">Travellers</th><th class="r">Commercial</th><th>Last 24 checks</th></tr></thead><tbody>${local.map(c=>`<tr><td><b>${esc(c.name)}</b>${c.updated?`<br><span class="faint" style="font-size:12px">${esc(c.updated)}</span>`:""}</td><td class="r">${waitTxt(c.travellers)}</td><td class="r">${waitTxt(c.commercial)}</td><td>${spark(c.name)}</td></tr>`).join("")}</tbody></table>`:`<p class="dim" style="margin-top:10px">No border data yet.</p>`}
+    ${local.length?`<div class="tw"><table class="stack" style="margin-top:8px"><thead><tr><th>Crossing</th><th class="r">Travellers</th><th class="r">Commercial</th><th class="sp">Last 24 checks</th></tr></thead><tbody>${local.map(c=>`<tr><td><b>${esc(c.name)}</b>${c.updated?`<br><span class="faint" style="font-size:12px">${esc(c.updated)}</span>`:""}</td><td class="r">${waitTxt(c.travellers)}</td><td class="r">${waitTxt(c.commercial)}</td><td class="sp">${spark(c.name)}</td></tr>`).join("")}</tbody></table></div>`:`<p class="dim" style="margin-top:10px">No border data yet.</p>`}
     ${busiest.length?`<h3 style="margin-top:16px;font-size:14px">Longest traveller waits in Canada right now</h3><div style="margin-top:8px">${bars(busiest.map(c=>({label:c.name,v:Math.max(c.travellers,0.5),txt:waitTxt(c.travellers)})),"var(--acc)")}</div>`:""}
    </section></div>
   <section class="card sec"><div class="row" style="justify-content:space-between"><h3>City of Ottawa road incidents${infoBtn("live-traffic")}</h3>${freshTag("traffic")}</div>
